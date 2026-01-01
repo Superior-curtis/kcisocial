@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isSchoolEmail() {
+      return request.auth != null && request.auth.token.email != null && request.auth.token.email.matches('(?i).*@kcis\.com\.tw$');
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userRole(uid) {
+      return userDoc(uid).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthed() && userRole(request.auth.uid) == 'admin';
+    }
+
+    function isTeacher() {
+      return isAuthed() && userRole(request.auth.uid) == 'teacher';
+    }
+
+    function isOfficial() {
+      return isAuthed() && userRole(request.auth.uid) == 'official';
+    }
+
+    function isStudent() {
+      return isAuthed() && userRole(request.auth.uid) == 'student';
+    }
+
+    // Users: only allow self-create with enforced role and domain; role changes require admin.
+    match /users/{userId} {
+      allow create: if request.auth.uid == userId
+        && isSchoolEmail()
+        && request.resource.data.role == 'student'
+        && request.resource.data.email.matches('(?i).*@kcis\.com\.tw$');
+
+      allow read: if isAuthed();
+
+      allow update: if request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
+
+      allow update: if isAdmin();
+
+      allow delete: if false;
+    }
+
+    // Posts
+    match /posts/{postId} {
+      allow read: if true;
+
+      allow create: if isAuthed()
+        && isSchoolEmail()
+        && (
+          (request.resource.data.authorType == 'user' && (isStudent() || isTeacher() || isAdmin())) ||
+          (request.resource.data.authorType == 'club'
+            && request.resource.data.clubId is string
+            && request.auth.uid in get(/databases/$(database)/documents/clubs/$(request.resource.data.clubId)).data.admins) ||
+          (request.resource.data.authorType == 'official' && (isOfficial() || isAdmin()))
+        );
+
+      allow update, delete: if isAdmin();
+    }
+
+    // Likes
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create, delete: if isAuthed()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.postId is string;
+    }
+
+    // Comments
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthed()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.content is string;
+      allow delete: if isAdmin() || request.auth.uid == resource.data.authorId;
+    }
+
+    // Ratings
+    match /ratings/{ratingId} {
+      allow read: if isAuthed();
+      allow create, update: if isAuthed()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.value >= 1
+        && request.resource.data.value <= 5;
+    }
+
+    // Messages: student-to-student only; block admin/official recipients.
+    match /messages/{messageId} {
+      allow read: if isAuthed() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthed()
+        && request.resource.data.senderId == request.auth.uid
+        && isStudent()
+        && userRole(request.resource.data.receiverId) == 'student';
+      allow update: if isAuthed() && request.auth.uid in resource.data.participants && request.resource.data.isRead == true;
+    }
+
+    // Clubs
+    match /clubs/{clubId} {
+      allow read: if true;
+      allow create: if isAuthed() && isStudent();
+      allow update: if isAdmin() || (request.auth.uid in resource.data.admins);
+    }
+
+    // Club posts mapping
+    match /clubPosts/{id} {
+      allow read: if true;
+      allow create: if isAuthed()
+        && request.resource.data.clubId is string
+        && request.resource.data.postId is string
+        && request.auth.uid in get(/databases/$(database)/documents/clubs/$(request.resource.data.clubId)).data.admins;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

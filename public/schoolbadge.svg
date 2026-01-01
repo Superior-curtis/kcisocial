@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KCIS badge">
+  <defs>
+    <linearGradient id="leaf" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0a9baa"/>
+      <stop offset="100%" stop-color="#0a8a9a"/>
+    </linearGradient>
+    <linearGradient id="tower" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a40890"/>
+      <stop offset="100%" stop-color="#8a0078"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" fill-rule="evenodd">
+    <!-- bottom leaves -->
+    <path d="M256 495c-11-66-44-121-96-159-52-38-118-51-186-39 38 127 150 198 282 198z" fill="url(#leaf)"/>
+    <path d="M256 495c11-66 44-121 96-159 52-38 118-51 186-39-38 127-150 198-282 198z" fill="url(#leaf)"/>
+    <!-- top arc -->
+    <path d="M256 17c132 0 240 107 240 240 0 14-2 31-5 46H21c-3-15-5-32-5-46C16 124 124 17 256 17z" fill="url(#tower)"/>
+    <!-- tower white squares -->
+    <g fill="#fff">
+      <rect x="236" y="66" width="40" height="40" rx="2"/>
+      <rect x="196" y="106" width="40" height="40" rx="2"/>
+      <rect x="236" y="106" width="40" height="40" rx="2"/>
+      <rect x="276" y="106" width="40" height="40" rx="2"/>
+      <rect x="156" y="146" width="40" height="40" rx="2"/>
+      <rect x="196" y="146" width="40" height="40" rx="2"/>
+      <rect x="236" y="146" width="40" height="40" rx="2"/>
+      <rect x="276" y="146" width="40" height="40" rx="2"/>
+      <rect x="316" y="146" width="40" height="40" rx="2"/>
+      <rect x="116" y="186" width="40" height="40" rx="2"/>
+      <rect x="156" y="186" width="40" height="40" rx="2"/>
+      <rect x="196" y="186" width="40" height="40" rx="2"/>
+      <rect x="236" y="186" width="40" height="40" rx="2"/>
+      <rect x="276" y="186" width="40" height="40" rx="2"/>
+      <rect x="316" y="186" width="40" height="40" rx="2"/>
+      <rect x="356" y="186" width="40" height="40" rx="2"/>
+    </g>
+    <!-- keyhole / circle cutout -->
+    <path d="M256 290c-32 0-58-26-58-58s26-58 58-58 58 26 58 58-26 58-58 58z" fill="#fff"/>
+  </g>
+</svg>

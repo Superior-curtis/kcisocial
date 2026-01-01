@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow all reads and writes (permissive for testing/initial launch)
+    // NOTE: Replace with firestore.rules.full after testing
+    match /{document=**} {
+      allow read, write;
+    }
+  }
+}

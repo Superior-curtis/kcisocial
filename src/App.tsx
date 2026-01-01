@@ -1,0 +1,84 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Welcome from "./pages/Welcome";
+import Feed from "./pages/Feed";
+import Messages from "./pages/Messages";
+import Chat from "./pages/Chat";
+import AIChat from "./pages/AIChat";
+import Clubs from "./pages/Clubs";
+import Official from "./pages/Official";
+import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
+import Settings from "./pages/Settings";
+import ClubDetail from "./pages/ClubDetail";
+import NotificationsPage from "./pages/Notifications";
+import HelpCenter from "./pages/HelpCenter";
+import AdminPanel from "./pages/AdminPanel";
+import NotFound from "./pages/NotFound";
+import { UserRole } from "@/types";
+
+const queryClient = new QueryClient();
+
+const ProtectedRoute = ({ element, roles }: { element: JSX.Element; roles?: UserRole[] }) => {
+  const { isAuthenticated, isLoading, hasPermission } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Checking access...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Auth />;
+  }
+
+  if (roles && !hasPermission(roles)) {
+    return <Feed />;
+  }
+
+  return element;
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/welcome" element={<Welcome />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/feed" element={<ProtectedRoute element={<Feed />} />} />
+            <Route path="/messages" element={<ProtectedRoute element={<Messages />} />} />
+            <Route path="/messages/:uid" element={<ProtectedRoute element={<Chat />} />} />
+            <Route path="/ai-chat" element={<ProtectedRoute element={<AIChat />} />} />
+            <Route path="/clubs" element={<ProtectedRoute element={<Clubs />} />} />
+            <Route path="/clubs/:clubId" element={<ProtectedRoute element={<ClubDetail />} />} />
+            <Route path="/official" element={<ProtectedRoute element={<Official />} />} />
+            <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
+            <Route path="/profile/:uid" element={<ProtectedRoute element={<UserProfile />} />} />
+            <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
+            <Route path="/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
+            <Route path="/help" element={<ProtectedRoute element={<HelpCenter />} />} />
+            <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} roles={["admin"]} />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
+
+export default App;
