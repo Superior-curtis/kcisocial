@@ -63,7 +63,7 @@ interface ActivityLog {
 }
 
 export default function AdminPanel() {
-  const { user } = useAuth();
+  const { user, startImpersonation, stopImpersonation, isImpersonating } = useAuth();
   const navigate = useNavigate();
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [users, setUsers] = useState<UserManagement[]>([]);
@@ -71,8 +71,7 @@ export default function AdminPanel() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, totalClubs: 0, pendingClubs: 0, pendingReports: 0 });
   const [loading, setLoading] = useState(true);
-  const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null);
-  const [impersonatingMode, setImpersonatingMode] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -336,35 +335,35 @@ export default function AdminPanel() {
             <CardDescription>Use the app as another user to troubleshoot issues</CardDescription>
           </CardHeader>
           <CardContent>
-            {impersonatingMode && impersonatingUserId ? (
+            {isImpersonating ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-sm font-medium">Currently impersonating:</p>
                     <p className="text-lg font-bold text-blue-600">
-                      {users.find(u => u.id === impersonatingUserId)?.displayName}
+                      {user?.displayName}
                     </p>
                   </div>
                   <Button
                     variant="destructive"
                     onClick={() => {
-                      setImpersonatingMode(false);
-                      setImpersonatingUserId(null);
+                      stopImpersonation();
+                      toast({ title: 'Impersonation ended', description: 'Back to your admin account' });
                     }}
                   >
                     Exit Impersonation
                   </Button>
                 </div>
                 <div className="text-xs text-muted-foreground bg-background p-3 rounded">
-                  <p>⚠️ You are viewing the app as another user. All actions are logged.</p>
+                  <p>⚠️ You are viewing the app as another user. All actions are logged. This mode persists until you exit.</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <Select
-                    value={impersonatingUserId || ''}
-                    onValueChange={setImpersonatingUserId}
+                    value={selectedUserId || ''}
+                    onValueChange={setSelectedUserId}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select a user to impersonate" />
@@ -379,12 +378,26 @@ export default function AdminPanel() {
                   </Select>
                   <Button
                     onClick={() => {
-                      if (impersonatingUserId) {
-                        setImpersonatingMode(true);
-                        toast({ title: 'Impersonation started', description: `Now viewing as ${users.find(u => u.id === impersonatingUserId)?.displayName}` });
+                      if (selectedUserId) {
+                        const selectedUser = users.find(u => u.id === selectedUserId);
+                        if (selectedUser) {
+                          startImpersonation(selectedUserId, {
+                            id: selectedUser.id,
+                            email: selectedUser.email,
+                            displayName: selectedUser.displayName,
+                            username: selectedUser.displayName.replace(/\s+/g, '').toLowerCase(),
+                            avatar: selectedUser.avatar,
+                            role: selectedUser.role,
+                            followersCount: 0,
+                            followingCount: 0,
+                            postsCount: 0,
+                            createdAt: selectedUser.createdAt,
+                          });
+                          toast({ title: 'Impersonation started', description: `Now viewing as ${selectedUser.displayName}. This persists across pages.` });
+                        }
                       }
                     }}
-                    disabled={!impersonatingUserId}
+                    disabled={!selectedUserId}
                   >
                     Enter
                   </Button>

@@ -24,8 +24,10 @@ export function AppLayout({
   disableTheme = false,
   noBackground = false,
 }: AppLayoutProps) {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const hasTheme = !disableTheme && user?.appTheme;
+  const headerHeight = showHeader ? 'mt-14' : '';
+  const impersonationBarHeight = isImpersonating ? 'mt-[33px]' : '';
   
   return (
     <div className={`min-h-screen relative overflow-hidden ${noBackground || hasTheme ? '' : 'bg-background'}`}>
@@ -43,7 +45,8 @@ export function AppLayout({
       
       <main className={`
         w-full max-w-2xl mx-auto
-        ${showHeader ? 'mt-14' : ''} 
+        ${headerHeight} 
+        ${impersonationBarHeight}
         ${showNav ? 'mb-16' : ''}
         ${hasTheme ? 'relative' : ''}
       `}>

@@ -127,21 +127,20 @@ export default function UserProfile() {
 
   return (
     <AppLayout title={user.username} showSearch={false} showCreate={false} disableTheme={true} noBackground={!!user.profileBackground}>
-      <div className="animate-fade-in relative">
+      <div className="animate-fade-in relative overflow-hidden">
         {/* Profile Background with Auth-style overlay */}
         {user.profileBackground && (
           <>
             <div 
-              className="absolute inset-0 bg-cover bg-center"
+              className="absolute inset-0 w-full h-full bg-cover bg-center"
               style={{
                 backgroundImage: user.profileBackground.startsWith('data:video/') 
                   ? 'none'
                   : `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${user.profileBackground})`,
-                backgroundAttachment: "fixed",
+                backgroundAttachment: "scroll",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 filter: "blur(8px)",
-                transform: "scale(1.1)",
               }}
             />
             {user.profileBackground.startsWith('data:video/') && (
@@ -155,7 +154,6 @@ export default function UserProfile() {
                   playsInline
                   style={{
                     filter: "blur(8px)",
-                    transform: "scale(1.1)",
                   }}
                 />
                 <div className="absolute inset-0 bg-black/50"></div>

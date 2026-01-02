@@ -12,6 +12,12 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (requiredRoles: UserRole[]) => boolean;
+  // Impersonation
+  impersonatingUser: User | null;
+  actualUser: User | null;
+  startImpersonation: (userId: string, impersonatedUser: User) => void;
+  stopImpersonation: () => void;
+  isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +25,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [actualUser, setActualUser] = useState<User | null>(null);
+  const [impersonatingUser, setImpersonatingUser] = useState<User | null>(null);
   const profileUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -163,6 +171,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return requiredRoles.includes(user.role);
   };
 
+  const startImpersonation = (userId: string, impersonatedUser: User) => {
+    setActualUser(user);
+    setImpersonatingUser(impersonatedUser);
+    setUser(impersonatedUser);
+    localStorage.setItem('impersonatingUserId', userId);
+    localStorage.setItem('impersonatingUserData', JSON.stringify(impersonatedUser));
+  };
+
+  const stopImpersonation = () => {
+    if (actualUser) {
+      setUser(actualUser);
+    }
+    setActualUser(null);
+    setImpersonatingUser(null);
+    localStorage.removeItem('impersonatingUserId');
+    localStorage.removeItem('impersonatingUserData');
+  };
+
+  // Restore impersonation state from localStorage when app loads
+  useEffect(() => {
+    if (user && !actualUser && !impersonatingUser) {
+      const storedImpersonatingData = localStorage.getItem('impersonatingUserData');
+      if (storedImpersonatingData) {
+        try {
+          const impersonatedData = JSON.parse(storedImpersonatingData);
+          setActualUser(user);
+          setImpersonatingUser(impersonatedData);
+          setUser(impersonatedData);
+        } catch (err) {
+          console.warn('Failed to restore impersonation state:', err);
+          localStorage.removeItem('impersonatingUserId');
+          localStorage.removeItem('impersonatingUserData');
+        }
+      }
+    }
+  }, [user, actualUser, impersonatingUser]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -172,6 +217,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         hasPermission,
+        impersonatingUser,
+        actualUser,
+        startImpersonation,
+        stopImpersonation,
+        isImpersonating: !!impersonatingUser,
       }}
     >
       {children}
