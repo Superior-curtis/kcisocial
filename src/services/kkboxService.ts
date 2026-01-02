@@ -1,6 +1,6 @@
 /**
  * Music Service
- * Simplified music search using iTunesAPI (no auth required)
+ * Search music from multiple sources (iTunes + Spotify via public endpoints)
  */
 
 interface Track {
@@ -12,18 +12,50 @@ interface Track {
   duration?: number;
   previewUrl?: string;
   externalUrl?: string;
+  source?: 'itunes' | 'spotify';
+  spotifyUrl?: string;
+  isrcCode?: string;
 }
 
 class MusicService {
-  private baseUrl = 'https://itunes.apple.com';
+  private itunesUrl = 'https://itunes.apple.com';
+  private spotifySearchUrl = 'https://open.spotify.com/search';
 
   /**
-   * Search tracks - no auth needed
+   * Search tracks from iTunes and Spotify
    */
   async searchTracks(query: string, limit: number = 20): Promise<Track[]> {
     try {
+      // Search iTunes first
+      const itunesResults = await this.searchItunes(query, limit);
+      
+      // Also create Spotify search link for users
+      const spotifyLink = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+      
+      // Add Spotify search reference at the top
+      const spotifySearchTrack: Track = {
+        id: 'spotify-search',
+        name: `🎵 Search "${query}" on Spotify for full song playback`,
+        artist: 'Click to open in Spotify',
+        source: 'spotify',
+        spotifyUrl: spotifyLink,
+        externalUrl: spotifyLink,
+      };
+
+      return [spotifySearchTrack, ...itunesResults];
+    } catch (error) {
+      console.error('Error searching tracks:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search iTunes
+   */
+  private async searchItunes(query: string, limit: number = 20): Promise<Track[]> {
+    try {
       const response = await fetch(
-        `${this.baseUrl}/search?term=${encodeURIComponent(query)}&entity=song&limit=${limit}`
+        `${this.itunesUrl}/search?term=${encodeURIComponent(query)}&entity=song&limit=${limit}`
       );
 
       const data = await response.json();
@@ -38,11 +70,20 @@ class MusicService {
         duration: Math.floor((track.trackTimeMillis || 0) / 1000),
         previewUrl: track.previewUrl || undefined,
         externalUrl: track.trackViewUrl || '',
+        source: 'itunes' as const,
       }));
     } catch (error) {
-      console.error('Error searching tracks:', error);
+      console.error('Error searching iTunes:', error);
       return [];
     }
+  }
+
+  /**
+   * Get Spotify link for a song - user can play full song there
+   */
+  getSpotifySearchLink(songName: string, artist?: string): string {
+    const query = artist ? `${songName} ${artist}` : songName;
+    return `https://open.spotify.com/search/${encodeURIComponent(query)}`;
   }
 
   /**

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Play, Music, AlertCircle } from 'lucide-react';
+import { Search, Play, Music, AlertCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -148,42 +148,64 @@ const MusicPlayer: React.FC = () => {
               {tracks.map((track, idx) => (
                 <div
                   key={`${track.id}-${idx}`}
-                  className="flex items-center gap-3 p-3 hover:bg-slate-800 transition border-b border-slate-800 last:border-0"
+                  className={`flex items-center gap-3 p-3 hover:bg-slate-800 transition border-b border-slate-800 last:border-0 ${
+                    track.source === 'spotify' ? 'bg-green-900/20' : ''
+                  }`}
                 >
-                  {track.image && (
+                  {track.id === 'spotify-search' ? (
+                    <div className="w-14 h-14 rounded bg-green-600 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xl">🎵</span>
+                    </div>
+                  ) : track.image ? (
                     <img
                       src={track.image}
                       alt={track.name}
-                      className="w-14 h-14 rounded shadow"
+                      className="w-14 h-14 rounded shadow flex-shrink-0"
                     />
-                  )}
+                  ) : null}
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">
                       {track.name}
                     </p>
-                    <p className="text-slate-400 text-xs truncate">
-                      {track.artist}
-                    </p>
+                    {track.artist && (
+                      <p className="text-slate-400 text-xs truncate">
+                        {track.artist}
+                      </p>
+                    )}
                     {track.album && (
                       <p className="text-slate-500 text-xs truncate">
                         {track.album}
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400 text-xs whitespace-nowrap">
-                      {formatDuration(track.duration || 0)}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant={currentTrack?.id === track.id ? 'default' : 'outline'}
-                      onClick={() => handlePlayPreview(track)}
-                      disabled={!track.previewUrl}
-                      className="rounded-full w-9 h-9 p-0"
-                      title={!track.previewUrl ? 'No preview available' : 'Play'}
-                    >
-                      <Play className="w-4 h-4" />
-                    </Button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {track.source === 'spotify' ? (
+                      <a
+                        href={track.spotifyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-xs font-medium transition"
+                      >
+                        <span>Listen</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <>
+                        <span className="text-slate-400 text-xs whitespace-nowrap">
+                          {track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : ''}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant={currentTrack?.id === track.id ? 'default' : 'outline'}
+                          onClick={() => handlePlayPreview(track)}
+                          disabled={!track.previewUrl}
+                          className="rounded-full w-9 h-9 p-0"
+                          title={!track.previewUrl ? 'No preview available' : 'Play 30s preview'}
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

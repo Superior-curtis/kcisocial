@@ -180,10 +180,11 @@ export interface VideoContent {
   id: string;
   title: string;
   description?: string;
-  type: 'internal' | 'youtube' | 'instagram';
+  type?: 'internal' | 'youtube' | 'instagram';
+  platform?: 'youtube' | 'instagram' | 'local';
   source: string;
   uploadedBy: string;
-  uploadedAt: Date;
+  uploadedAt?: Date;
   duration?: number;
   thumbnail?: string;
   views: number;

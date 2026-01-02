@@ -18,14 +18,16 @@ const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false, compact 
   const [newMessage, setNewMessage] = useState('');
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
+  const [messageAuthors, setMessageAuthors] = useState<Map<string, string>>(new Map()); // Track who posted what
 
   const handlePostMessage = async () => {
     if (!newMessage.trim()) return;
 
     setSending(true);
     try {
+      const messageId = `${Date.now()}-${Math.random()}`;
       const message: AnonymousMessage = {
-        id: `${Date.now()}-${Math.random()}`,
+        id: messageId,
         publisherId: 'anonymous',
         content: newMessage,
         emoji: undefined,
@@ -35,6 +37,8 @@ const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false, compact 
       };
 
       setMessages([message, ...messages]);
+      // Track the author for this message
+      setMessageAuthors(new Map(messageAuthors).set(messageId, user?.id || 'guest'));
       setNewMessage('');
     } catch (error) {
       console.error('Failed to post message:', error);
@@ -44,8 +48,13 @@ const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false, compact 
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    if (isAdmin || user?.role === 'admin') {
+    const messageAuthor = messageAuthors.get(messageId);
+    // Allow deletion if user is admin or is the author of the message
+    if (isAdmin || user?.role === 'admin' || messageAuthor === user?.id) {
       setMessages(messages.filter((msg) => msg.id !== messageId));
+      const newAuthors = new Map(messageAuthors);
+      newAuthors.delete(messageId);
+      setMessageAuthors(newAuthors);
     }
   };
 
@@ -126,10 +135,11 @@ const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false, compact 
                         />
                         <span>{message.likes > 0 ? message.likes : ''}</span>
                       </button>
-                      {(isAdmin || user?.role === 'admin') && (
+                      {(isAdmin || user?.role === 'admin' || messageAuthors.get(message.id) === user?.id) && (
                         <button
                           onClick={() => handleDeleteMessage(message.id)}
                           className="text-destructive hover:text-destructive/80 ml-auto"
+                          title={messageAuthors.get(message.id) === user?.id ? 'Delete your message' : 'Delete (admin)'}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -241,12 +251,13 @@ const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false, compact 
                       <p className="text-xs text-muted-foreground font-medium">
                         Anonymous User
                       </p>
-                      {(isAdmin || user?.role === 'admin') && (
+                      {(isAdmin || user?.role === 'admin' || messageAuthors.get(message.id) === user?.id) && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteMessage(message.id)}
                           className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                          title={messageAuthors.get(message.id) === user?.id ? 'Delete your message' : 'Delete (admin)'}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
