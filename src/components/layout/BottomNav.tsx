@@ -1,11 +1,14 @@
-import { Home, MessageCircle, Users, Megaphone, User, Shield, Sparkles } from 'lucide-react';
+import { Home, MessageCircle, Users, Megaphone, User, Shield, Sparkles, Music, Video, Radio, MessageSquare } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function BottomNav() {
   const location = useLocation();
   const { user } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
   
   const baseItems = [
     { to: '/feed', icon: Home, label: 'Home' },
@@ -14,6 +17,13 @@ export function BottomNav() {
     { to: '/official', icon: Megaphone, label: 'Official' },
     { to: '/ai-chat', icon: Sparkles, label: 'AI' },
     { to: '/profile', icon: User, label: 'Profile' },
+  ];
+
+  const moreItems = [
+    { to: '/music', icon: Music, label: 'Music' },
+    { to: '/videos', icon: Video, label: 'Videos' },
+    { to: '/live', icon: Radio, label: 'Live' },
+    { to: '/anonymous', icon: MessageSquare, label: 'Anonymous' },
   ];
 
   const navItems = user?.role === 'admin' 
@@ -68,6 +78,28 @@ export function BottomNav() {
             </NavLink>
           );
         })}
+        
+        {/* More Features Menu */}
+        <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+          <DropdownMenuTrigger asChild>
+            <button className="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground">
+              <div className="relative p-2 rounded-xl transition-all duration-200">
+                <span className="text-2xl">•••</span>
+              </div>
+              <span className="text-[10px] font-medium mt-0.5 opacity-70">More</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="mb-20">
+            {moreItems.map(({ to, icon: Icon, label }) => (
+              <DropdownMenuItem key={to} asChild>
+                <NavLink to={to} className="flex items-center gap-2 cursor-pointer">
+                  <Icon className="w-4 h-4" />
+                  <span>{label}</span>
+                </NavLink>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
   );

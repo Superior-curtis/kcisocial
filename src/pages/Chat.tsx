@@ -8,9 +8,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getUserProfile, listenToConversationMessages, sendMessage, uploadMedia, toggleFollow, isFollowing, listenToGroupMessages, sendGroupMessage, markMessageAsRead, leaveGroupChat, deleteGroupChat, getGroupInfo, removeGroupMember } from "@/lib/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
-import { Paperclip, X, Sparkles, UserPlus, UserCheck, LogOut, Trash2, Users } from "lucide-react";
+import { Paperclip, X, Sparkles, UserPlus, UserCheck, LogOut, Trash2, Users, Phone, Mic } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import VideoCall from "@/components/VideoCall";
+import VoiceMessageRecorder from "@/components/VoiceMessageRecorder";
 
 export default function Chat() {
   const { uid: otherId } = useParams<{ uid: string }>();
@@ -33,6 +35,8 @@ export default function Chat() {
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   
   // Check if this is a group chat
   const queryParams = new URLSearchParams(location.search);
@@ -469,9 +473,19 @@ export default function Chat() {
               className="hidden"
               onChange={handleAttach}
             />
-            <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach media">
               <Paperclip className="w-5 h-5" />
             </Button>
+            {!isGroupChat && (
+              <>
+                <Button variant="ghost" size="icon" onClick={() => setShowVideoCall(true)} title="Start video/voice call">
+                  <Phone className="w-5 h-5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setShowVoiceRecorder(true)} title="Send voice message">
+                  <Mic className="w-5 h-5" />
+                </Button>
+              </>
+            )}
             <Input placeholder="Message" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
             <Button onClick={send} disabled={uploading || (!text.trim() && !mediaUrl)}>Send</Button>
           </div>
@@ -527,6 +541,51 @@ export default function Chat() {
             </div>
           )}
         </DialogContent>
-      </Dialog>    </AppLayout>
+      </Dialog>
+
+      {/* Video Call Dialog */}
+      {showVideoCall && otherId && (
+        <Dialog open={showVideoCall} onOpenChange={setShowVideoCall}>
+          <DialogContent className="max-w-4xl h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Video Call with {otherUserName}</DialogTitle>
+            </DialogHeader>
+            <VideoCall 
+              recipientId={otherId} 
+              recipientName={otherUserName} 
+              userId={user?.id || ''}
+              userName={user?.displayName || 'User'}
+              callType="video"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Voice Message Dialog */}
+      {showVoiceRecorder && otherId && (
+        <Dialog open={showVoiceRecorder} onOpenChange={setShowVoiceRecorder}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Send Voice Message</DialogTitle>
+            </DialogHeader>
+            <VoiceMessageRecorder 
+              recipientId={otherId}
+              onSend={async (audioBlob, duration) => {
+                try {
+                  const file = new File([audioBlob], 'voice-message.m4a', { type: 'audio/mp4' });
+                  const mediaUrl = await uploadMedia(file);
+                  await sendMessage(user?.id || '', otherId, `Voice message (${Math.round(duration)}s)`, mediaUrl, 'audio');
+                  toast({ description: 'Voice message sent!' });
+                  setShowVoiceRecorder(false);
+                } catch (error) {
+                  console.error('Failed to send voice message:', error);
+                  toast({ description: 'Failed to send voice message', variant: 'destructive' });
+                }
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </AppLayout>
   );
 }
