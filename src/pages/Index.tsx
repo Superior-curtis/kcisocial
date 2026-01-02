@@ -11,7 +11,7 @@ const Index = () => {
       if (isAuthenticated) {
         navigate('/feed');
       } else {
-        navigate('/welcome');
+        navigate('/auth');
       }
     }
   }, [isAuthenticated, isLoading, navigate]);

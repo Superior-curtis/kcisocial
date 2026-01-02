@@ -71,6 +71,8 @@ export default function AdminPanel() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, totalClubs: 0, pendingClubs: 0, pendingReports: 0 });
   const [loading, setLoading] = useState(true);
+  const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null);
+  const [impersonatingMode, setImpersonatingMode] = useState(false);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -326,6 +328,71 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Impersonation Mode */}
+        <Card className="mb-4 border-blue-500 bg-blue-50 dark:bg-blue-950/20">
+          <CardHeader>
+            <CardTitle className="text-blue-600 dark:text-blue-400">Developer Mode - Impersonate User</CardTitle>
+            <CardDescription>Use the app as another user to troubleshoot issues</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {impersonatingMode && impersonatingUserId ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Currently impersonating:</p>
+                    <p className="text-lg font-bold text-blue-600">
+                      {users.find(u => u.id === impersonatingUserId)?.displayName}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      setImpersonatingMode(false);
+                      setImpersonatingUserId(null);
+                    }}
+                  >
+                    Exit Impersonation
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground bg-background p-3 rounded">
+                  <p>⚠️ You are viewing the app as another user. All actions are logged.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Select
+                    value={impersonatingUserId || ''}
+                    onValueChange={setImpersonatingUserId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a user to impersonate" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.displayName} ({u.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => {
+                      if (impersonatingUserId) {
+                        setImpersonatingMode(true);
+                        toast({ title: 'Impersonation started', description: `Now viewing as ${users.find(u => u.id === impersonatingUserId)?.displayName}` });
+                      }
+                    }}
+                    disabled={!impersonatingUserId}
+                  >
+                    Enter
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Help Requests Tabs */}
         <Tabs defaultValue="overview" className="w-full">

@@ -1604,15 +1604,65 @@ export async function deleteClub(clubId: string, userId: string) {
   const isCreator = clubData.createdBy === userId;
   const isAdmin = (clubData.admins || []).includes(userId);
   
-  if (!isCreator && !isAdmin) {
-    throw new Error('Only club creator or admins can delete the club');
+  // Check if user is system admin
+  const userRef = doc(usersCollection, userId);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.data() as UserRecord;
+  const isSystemAdmin = userData?.role === 'admin';
+  
+  if (!isCreator && !isAdmin && !isSystemAdmin) {
+    throw new Error('Only club creator, club admins, or system admin can delete the club');
+  }
+  
+  // Delete club posts
+  const clubPostsQuery = query(
+    collection(firestore, 'posts'),
+    where('clubId', '==', clubId)
+  );
+  const clubPostsSnap = await getDocs(clubPostsQuery);
+  for (const postDoc of clubPostsSnap.docs) {
+    await deleteDoc(postDoc.ref);
   }
   
   // Delete club document
   await deleteDoc(clubRef);
+  await logActivity(userId, `Deleted club ${clubId}`, 'club', clubId);
   
-  // Could also delete associated subcollections here if needed
   console.log(`Club ${clubId} deleted by user ${userId}`);
+}
+
+// Update club (admin or creator only)
+export async function updateClub(
+  clubId: string,
+  userId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    avatar?: string;
+    coverImage?: string;
+    isApproved?: boolean;
+  }
+) {
+  const clubRef = doc(clubsCollection, clubId);
+  const clubSnap = await getDoc(clubRef);
+  if (!clubSnap.exists()) throw new Error('Club not found');
+  
+  const clubData = clubSnap.data() as any;
+  const isCreator = clubData.createdBy === userId;
+  const isAdmin = (clubData.admins || []).includes(userId);
+  
+  // Check if user is system admin
+  const userRef = doc(usersCollection, userId);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.data() as UserRecord;
+  const isSystemAdmin = userData?.role === 'admin';
+  
+  if (!isCreator && !isAdmin && !isSystemAdmin) {
+    throw new Error('You do not have permission to edit this club');
+  }
+  
+  await updateDoc(clubRef, updates);
+  await logActivity(userId, `Updated club ${clubId}`, 'club', clubId);
 }
 
 export async function leaveClub(clubId: string, userId: string) {

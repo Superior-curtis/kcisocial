@@ -126,7 +126,7 @@ export default function UserProfile() {
   };
 
   return (
-    <AppLayout title={user.username} showSearch={false} showCreate={false}>
+    <AppLayout title={user.username} showSearch={false} showCreate={false} disableTheme={true} noBackground={!!user.profileBackground}>
       <div className="animate-fade-in relative">
         {/* Profile Background with Auth-style overlay */}
         {user.profileBackground && (

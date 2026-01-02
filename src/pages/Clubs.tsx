@@ -1,7 +1,7 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Plus, Upload } from 'lucide-react';
+import { Users, Plus, Upload, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClubs } from '@/hooks/useClubs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClub, approveClub, joinClub, leaveClub, uploadMedia } from '@/lib/firestore';
+import { createClub, approveClub, joinClub, leaveClub, uploadMedia, deleteClub, updateClub } from '@/lib/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,6 +24,8 @@ export default function Clubs() {
   const [busy, setBusy] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [editingClubId, setEditingClubId] = useState<string | null>(null);
+  const [deletingClubId, setDeletingClubId] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
@@ -38,6 +40,12 @@ export default function Clubs() {
       toast({ title: 'Please complete the form' });
       return;
     }
+
+    // If editing, call handleEditSubmit instead
+    if (editingClubId) {
+      return await handleEditSubmit();
+    }
+
     setBusy(true);
     try {
       let avatarUrl = '';
@@ -102,13 +110,82 @@ export default function Clubs() {
         toast({ title: 'Left club' });
       } else {
         await joinClub(clubId, user.id);
-        toast({ title: 'Joined club!' });
+        toast({ title: 'Joined club' });
       }
     } catch (e) {
-      toast({ title: 'Failed', description: (e as Error).message, variant: 'destructive' });
+      toast({ title: 'Failed to update', description: (e as Error).message, variant: 'destructive' });
     } finally {
       setJoiningId(null);
     }
+  };
+
+  const handleEditClub = (club: any) => {
+    setEditingClubId(club.id);
+    setName(club.name);
+    setDesc(club.description);
+    setAvatarPreview(club.avatar || '');
+    setCoverPreview(club.coverImage || '');
+    setOpen(true);
+  };
+
+  const handleDeleteClub = async (clubId: string) => {
+    if (!user || user.role !== 'admin') {
+      toast({ title: 'Admin only', variant: 'destructive' });
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this club?')) return;
+    setDeletingClubId(clubId);
+    try {
+      await deleteClub(clubId, user.id);
+      toast({ title: 'Club deleted' });
+    } catch (e) {
+      toast({ title: 'Failed to delete', description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setDeletingClubId(null);
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (!user || !editingClubId) return;
+    if (!name.trim() || !desc.trim()) {
+      toast({ title: 'Please complete the form' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const updates: any = {
+        name: name.trim(),
+        description: desc.trim(),
+      };
+
+      if (avatarFile) {
+        updates.avatar = await uploadMedia(avatarFile, 'clubs');
+      }
+      if (coverFile) {
+        updates.coverImage = await uploadMedia(coverFile, 'clubs');
+      }
+
+      await updateClub(editingClubId, user.id, updates);
+      setEditingClubId(null);
+      setOpen(false);
+      resetForm();
+      toast({ title: 'Club updated' });
+    } catch (e) {
+      toast({ title: 'Failed to update', description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetForm = () => {
+    setName('');
+    setDesc('');
+    setRequiresApproval(false);
+    setAvatarFile(null);
+    setCoverFile(null);
+    setAvatarPreview('');
+    setCoverPreview('');
+    setEditingClubId(null);
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,6 +256,27 @@ export default function Clubs() {
                     {approvingId === club.id ? 'Approving...' : 'Approve'}
                   </Button>
                 )}
+                {user && user.role === 'admin' && (
+                  <div className="absolute bottom-2 right-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-white/80 backdrop-blur"
+                      onClick={() => handleEditClub(club)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="bg-red-500/80"
+                      disabled={deletingClubId === club.id}
+                      onClick={() => handleDeleteClub(club.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
               
               {/* Club Info */}
@@ -236,10 +334,13 @@ export default function Clubs() {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (!newOpen) resetForm();
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Apply for a new club</DialogTitle>
+            <DialogTitle>{editingClubId ? 'Edit Club' : 'Apply for a new club'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -290,8 +391,12 @@ export default function Clubs() {
                 </label>
               </div>
             </div>
-            <Button onClick={submit} disabled={busy}>{busy ? 'Submitting...' : 'Submit'}</Button>
-            <p className="text-xs text-muted-foreground">An admin or teacher may review your application.</p>
+            <Button onClick={submit} disabled={busy}>
+              {busy ? 'Submitting...' : editingClubId ? 'Update Club' : 'Submit'}
+            </Button>
+            {!editingClubId && (
+              <p className="text-xs text-muted-foreground">An admin or teacher may review your application.</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
