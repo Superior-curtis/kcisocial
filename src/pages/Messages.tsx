@@ -10,7 +10,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { useNavigate } from 'react-router-dom';
 import { searchUsers } from '@/lib/firestore';
 import { User } from '@/types';
-import { Search, UserPlus, Bot, Sparkles, Users, X } from 'lucide-react';
+import { Search, UserPlus, Bot, Sparkles, Users, X, Lock } from 'lucide-react';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -259,6 +259,33 @@ export default function Messages() {
         )}
         
         <div className="space-y-2">
+          {/* Anonymous Wall Special Chat */}
+          <button
+            className={cn(
+              'w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200',
+              'hover:bg-accent'
+            )}
+            onClick={() => navigate('/messages/anonymous')}
+          >
+            <div className="relative">
+              <Avatar className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500">
+                <AvatarFallback className="text-white text-lg font-bold">🔒</AvatarFallback>
+              </Avatar>
+            </div>
+            
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-purple-500" />
+                  Anonymous Wall
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground truncate mt-0.5">
+                Share your thoughts anonymously
+              </p>
+            </div>
+          </button>
+
           {conversations
             .filter(Boolean)
             .map((conversation, index) => (

@@ -26,7 +26,6 @@ import Maintenance from "./pages/Maintenance";
 import NotFound from "./pages/NotFound";
 import Music from "./pages/Music";
 import Videos from "./pages/Videos";
-import Anonymous from "./pages/Anonymous";
 import { UserRole } from "@/types";
 import { getSystemSettings } from "@/lib/firestore";
 
@@ -119,7 +118,6 @@ const App = () => (
             <Route path="/help" element={<ProtectedRoute element={<HelpCenter />} />} />
             <Route path="/music" element={<ProtectedRoute element={<Music />} />} />
             <Route path="/videos" element={<ProtectedRoute element={<Videos />} />} />
-            <Route path="/anonymous" element={<ProtectedRoute element={<Anonymous />} />} />
             <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} roles={["admin"]} />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

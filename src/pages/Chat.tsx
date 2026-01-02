@@ -8,11 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getUserProfile, listenToConversationMessages, sendMessage, uploadMedia, toggleFollow, isFollowing, listenToGroupMessages, sendGroupMessage, markMessageAsRead, leaveGroupChat, deleteGroupChat, getGroupInfo, removeGroupMember } from "@/lib/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
-import { Paperclip, X, Sparkles, UserPlus, UserCheck, LogOut, Trash2, Users, Phone, Mic } from "lucide-react";
+import { Paperclip, X, Sparkles, UserPlus, UserCheck, LogOut, Trash2, Users, Phone, Mic, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import VideoCall from "@/components/VideoCall";
 import VoiceMessageRecorder from "@/components/VoiceMessageRecorder";
+import AnonymousWall from "@/components/AnonymousWall";
 
 export default function Chat() {
   const { uid: otherId } = useParams<{ uid: string }>();
@@ -41,6 +42,26 @@ export default function Chat() {
   // Check if this is a group chat
   const queryParams = new URLSearchParams(location.search);
   const isGroupChat = queryParams.get('group') === 'true';
+  const isAnonymousWall = otherId === 'anonymous';
+
+  // Handle anonymous wall display
+  if (isAnonymousWall) {
+    return (
+      <AppLayout title="Messages" showCreate={false}>
+        <div className="flex flex-col h-screen">
+          {/* Header */}
+          <div className="border-b p-4 flex items-center gap-3">
+            <button onClick={() => navigate('/messages')} className="hover:opacity-70">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg font-semibold">Anonymous Wall</h1>
+          </div>
+          {/* Anonymous Wall Component */}
+          <AnonymousWall compact={true} />
+        </div>
+      </AppLayout>
+    );
+  }
 
   useEffect(() => {
     if (!user || !otherId) return;

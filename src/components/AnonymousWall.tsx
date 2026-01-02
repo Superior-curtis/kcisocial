@@ -1,206 +1,290 @@
-import React, { useState, useEffect } from 'react';
-import { Send, Heart, MessageCircle, Eye, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Send, Heart, MessageCircle, Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AnonymousMessage } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AnonymousWallProps {
   isAdmin?: boolean;
+  compact?: boolean;
 }
 
-const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false }) => {
+const AnonymousWall: React.FC<AnonymousWallProps> = ({ isAdmin = false, compact = false }) => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<AnonymousMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [selectedEmoji, setSelectedEmoji] = useState('');
-  const [expandedMessage, setExpandedMessage] = useState<string | null>(null);
-
-  const emojis = ['😍', '😂', '😢', '😡', '🤔', '👍', '❤️', '🔥', '🎉'];
+  const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
 
   const handlePostMessage = async () => {
     if (!newMessage.trim()) return;
 
-    const message: AnonymousMessage = {
-      id: Math.random().toString(36),
-      publisherId: 'anonymous-user',
-      content: newMessage,
-      emoji: selectedEmoji,
-      publishedAt: new Date(),
-      likes: 0,
-      replies: [],
-    };
+    setSending(true);
+    try {
+      const message: AnonymousMessage = {
+        id: `${Date.now()}-${Math.random()}`,
+        publisherId: 'anonymous',
+        content: newMessage,
+        emoji: undefined,
+        publishedAt: new Date(),
+        likes: 0,
+        replies: [],
+      };
 
-    setMessages([message, ...messages]);
-    setNewMessage('');
-    setSelectedEmoji('');
-    // TODO: Save to Firestore
+      setMessages([message, ...messages]);
+      setNewMessage('');
+    } catch (error) {
+      console.error('Failed to post message:', error);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    if (isAdmin) {
+    if (isAdmin || user?.role === 'admin') {
       setMessages(messages.filter((msg) => msg.id !== messageId));
-      // TODO: Delete from Firestore
     }
   };
 
   const handleLike = (messageId: string) => {
-    setMessages(
-      messages.map((msg) =>
-        msg.id === messageId ? { ...msg, likes: msg.likes + 1 } : msg
-      )
-    );
+    if (likedMessages.has(messageId)) {
+      likedMessages.delete(messageId);
+      setMessages(
+        messages.map((msg) =>
+          msg.id === messageId ? { ...msg, likes: Math.max(0, msg.likes - 1) } : msg
+        )
+      );
+    } else {
+      likedMessages.add(messageId);
+      setMessages(
+        messages.map((msg) =>
+          msg.id === messageId ? { ...msg, likes: msg.likes + 1 } : msg
+        )
+      );
+    }
+    setLikedMessages(new Set(likedMessages));
   };
 
-  const formatTime = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - new Date(date).getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return 'long ago';
-  };
-
-  return (
-    <div className="space-y-4">
-      <Card className="bg-gradient-to-r from-purple-600 to-pink-600 border-0">
-        <CardHeader>
-          <CardTitle className="text-white">Anonymous Message Wall</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            placeholder="Share your thoughts anonymously..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder-white/50 resize-none"
-            rows={3}
-          />
-
-          <div className="flex gap-2 flex-wrap">
-            {emojis.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() =>
-                  setSelectedEmoji(selectedEmoji === emoji ? '' : emoji)
-                }
-                className={`text-2xl p-2 rounded transition ${
-                  selectedEmoji === emoji
-                    ? 'bg-white/30 scale-125'
-                    : 'bg-white/10 hover:bg-white/20'
-                }`}
-              >
-                {emoji}
-              </button>
-            ))}
+  if (compact) {
+    // Compact mode for Messages page
+    return (
+      <div className="flex flex-col h-full">
+        {/* Info Banner */}
+        <div className="bg-blue-50 border-b border-blue-200 p-3">
+          <div className="flex gap-2">
+            <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-blue-800">
+              <p className="font-medium">Anonymous Message Wall</p>
+              <p>Everyone sees the same conversation. Be respectful!</p>
+            </div>
           </div>
+        </div>
 
-          <Button
-            className="w-full bg-white text-purple-600 hover:bg-slate-100 font-bold"
-            onClick={handlePostMessage}
-            disabled={!newMessage.trim()}
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Post Anonymously
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white">
-            Messages ({messages.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 ? (
-            <p className="text-slate-400 text-center py-8">
-              No messages yet. Be the first!
-            </p>
+            <div className="text-center text-muted-foreground py-8">
+              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No messages yet</p>
+            </div>
           ) : (
             messages.map((message) => (
               <div
                 key={message.id}
-                className="bg-slate-700 rounded-lg p-4 space-y-3"
+                className="bg-accent rounded-lg p-3 border-l-4 border-l-purple-500"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
-                        A
-                      </div>
-                      <span className="text-white font-medium">Anonymous</span>
-                      <span className="text-slate-400 text-sm">
-                        {formatTime(message.publishedAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      {message.emoji && (
-                        <span className="text-2xl">{message.emoji}</span>
+                <div className="flex gap-3">
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarFallback className="bg-purple-500 text-white text-xs font-bold">
+                      🔒
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      Anonymous User
+                    </p>
+                    <p className="text-sm mt-1 break-words">
+                      {message.content}
+                    </p>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <button
+                        onClick={() => handleLike(message.id)}
+                        className="flex items-center gap-1 hover:text-primary transition"
+                      >
+                        <Heart
+                          className={`w-3 h-3 ${
+                            likedMessages.has(message.id)
+                              ? 'fill-red-500 text-red-500'
+                              : ''
+                          }`}
+                        />
+                        <span>{message.likes > 0 ? message.likes : ''}</span>
+                      </button>
+                      {(isAdmin || user?.role === 'admin') && (
+                        <button
+                          onClick={() => handleDeleteMessage(message.id)}
+                          className="text-destructive hover:text-destructive/80 ml-auto"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       )}
-                      <p className="text-slate-300">{message.content}</p>
                     </div>
                   </div>
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-400 hover:text-red-300"
-                      onClick={() => handleDeleteMessage(message.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
-
-                <div className="flex items-center gap-4 text-sm">
-                  <button
-                    className="flex items-center gap-1 text-slate-400 hover:text-red-400 transition"
-                    onClick={() => handleLike(message.id)}
-                  >
-                    <Heart className="w-4 h-4" />
-                    <span>{message.likes}</span>
-                  </button>
-                  <button
-                    className="flex items-center gap-1 text-slate-400 hover:text-blue-400 transition"
-                    onClick={() =>
-                      setExpandedMessage(
-                        expandedMessage === message.id ? null : message.id
-                      )
-                    }
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>{message.replies.length}</span>
-                  </button>
-                </div>
-
-                {expandedMessage === message.id && (
-                  <div className="mt-3 pt-3 border-t border-slate-600 space-y-2">
-                    {message.replies.length === 0 ? (
-                      <p className="text-slate-400 text-sm">No replies yet</p>
-                    ) : (
-                      message.replies.map((reply) => (
-                        <div key={reply.id} className="text-sm ml-8">
-                          <p className="text-slate-400">
-                            <span className="text-slate-300">Anonymous:</span>{' '}
-                            {reply.content}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                    <input
-                      type="text"
-                      placeholder="Reply anonymously..."
-                      className="w-full bg-slate-600 border border-slate-500 text-white rounded px-2 py-1 text-sm placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                )}
               </div>
             ))
           )}
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t p-3 space-y-2">
+          <Textarea
+            placeholder="Say something... (anonymous)"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="resize-none min-h-12 text-sm"
+            maxLength={200}
+          />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">
+              {newMessage.length}/200
+            </span>
+            <Button
+              size="sm"
+              onClick={handlePostMessage}
+              disabled={!newMessage.trim() || sending}
+              className="gap-1"
+            >
+              <Send className="w-3 h-3" />
+              Post
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Full mode for dedicated page
+  return (
+    <div className="space-y-4 pb-20 px-4 max-w-2xl mx-auto">
+      {/* Info Card */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4 flex gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800">
+            <p className="font-medium">Anonymous Message Wall</p>
+            <p className="text-blue-700">Share your thoughts anonymously. Be respectful and kind!</p>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Post Form */}
+      <Card className="border border-primary/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Share Something</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            placeholder="What's on your mind? (anonymous)"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="resize-none min-h-20"
+            maxLength={500}
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {newMessage.length}/500
+            </span>
+            <Button
+              onClick={handlePostMessage}
+              disabled={!newMessage.trim() || sending}
+              className="gap-2"
+            >
+              <Send className="w-4 h-4" />
+              Post Anonymously
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Messages */}
+      <div className="space-y-3">
+        {messages.length === 0 ? (
+          <Card className="text-center py-12">
+            <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
+            <p className="text-muted-foreground">No messages yet. Be the first to share!</p>
+          </Card>
+        ) : (
+          messages.map((message) => (
+            <Card
+              key={message.id}
+              className="hover:shadow-md transition border-l-4 border-l-purple-500"
+            >
+              <CardContent className="p-4">
+                <div className="flex gap-3">
+                  {/* Avatar */}
+                  <Avatar className="w-10 h-10 flex-shrink-0">
+                    <AvatarFallback className="bg-purple-500 text-white text-sm font-semibold">
+                      🔒
+                    </AvatarFallback>
+                  </Avatar>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Anonymous User
+                      </p>
+                      {(isAdmin || user?.role === 'admin') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteMessage(message.id)}
+                          className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Message Text */}
+                    <p className="text-sm mt-2 leading-relaxed break-words">
+                      {message.content}
+                    </p>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                      <button
+                        onClick={() => handleLike(message.id)}
+                        className="flex items-center gap-1 hover:text-primary transition group"
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            likedMessages.has(message.id)
+                              ? 'fill-red-500 text-red-500'
+                              : 'group-hover:text-red-500'
+                          }`}
+                        />
+                        <span>{message.likes > 0 ? message.likes : ''}</span>
+                      </button>
+                      <button className="flex items-center gap-1 hover:text-primary transition">
+                        <MessageCircle className="w-4 h-4" />
+                        <span>{message.replies?.length || 0}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 };
