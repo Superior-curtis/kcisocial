@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Users, Info, Grid3X3, ArrowLeft, Heart, MessageCircle, Image as ImageIcon, MessageSquare, Send, Paperclip, Plus, Trash2, Crown, X, UserPlus } from 'lucide-react';
+import { Users, Info, Grid3X3, ArrowLeft, Heart, MessageCircle, Image as ImageIcon, MessageSquare, Send, Paperclip, Plus, Trash2, Crown, X, UserPlus, Music, Play, Search } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { getClubPosts, listenToClubMessages, createClubMessage, publishClubPost, uploadMedia, getClubMembers, kickMember, promoteMember, getUserProfile, inviteToClub, type UserRecord } from '@/lib/firestore';
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import musicService from '@/services/kkboxService';
 
 interface Club {
   id: string;
@@ -67,6 +68,10 @@ export default function ClubDetail() {
   const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
   const [loadingAllUsers, setLoadingAllUsers] = useState(false);
   const [invitingUser, setInvitingUser] = useState(false);
+  const [sharedTracks, setSharedTracks] = useState<any[]>([]);
+  const [musicSearchQuery, setMusicSearchQuery] = useState('');
+  const [musicSearchResults, setMusicSearchResults] = useState<any[]>([]);
+  const [musicSearching, setMusicSearching] = useState(false);
 
   const isClubAdmin = user && club && (club.admins?.includes(user.id) || club.createdBy === user.id || user.role === 'admin');
   const isMember = user && club?.members?.includes(user.id);
@@ -267,6 +272,36 @@ export default function ClubDetail() {
     } finally {
       setLoadingAllUsers(false);
     }
+  };
+
+  const handleSearchMusic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!musicSearchQuery.trim()) return;
+    
+    setMusicSearching(true);
+    try {
+      const results = await musicService.searchTracks(musicSearchQuery);
+      setMusicSearchResults(results as any[]);
+    } catch (error) {
+      console.error('Search failed:', error);
+      toast({ title: 'Failed to search music', variant: 'destructive' });
+    } finally {
+      setMusicSearching(false);
+    }
+  };
+
+  const handleShareTrack = (track: any) => {
+    // Add to shared tracks if not already there
+    if (!sharedTracks.find(t => t.id === track.id)) {
+      setSharedTracks([...sharedTracks, track]);
+      toast({ title: 'Track added to share list' });
+    } else {
+      toast({ title: 'Track already in share list' });
+    }
+  };
+
+  const handleRemoveSharedTrack = (trackId: string) => {
+    setSharedTracks(sharedTracks.filter(t => t.id !== trackId));
   };
 
   const handleInviteUser = async (userId: string) => {
@@ -509,6 +544,10 @@ export default function ClubDetail() {
               <MessageSquare className="w-4 h-4" />
               Chat
             </TabsTrigger>
+            <TabsTrigger value="music" className="gap-2">
+              <Music className="w-4 h-4" />
+              Music
+            </TabsTrigger>
             <TabsTrigger value="members" className="gap-2">
               <Users className="w-4 h-4" />
               Members
@@ -650,6 +689,108 @@ export default function ClubDetail() {
                   </>
                 )}
               </div>
+            </div>
+          </TabsContent>
+
+          {/* Music Sharing */}
+          <TabsContent value="music" className="mt-0 p-4">
+            <div className="space-y-4">
+              {/* Search Form */}
+              <form onSubmit={handleSearchMusic} className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search songs..."
+                    value={musicSearchQuery}
+                    onChange={(e) => setMusicSearchQuery(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="submit" disabled={musicSearching}>
+                    <Search className="w-4 h-4" />
+                  </Button>
+                </div>
+              </form>
+
+              {/* Search Results */}
+              {musicSearchResults.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Search Results</h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {musicSearchResults.map((track) => (
+                      <div key={track.id} className="flex items-center gap-3 p-2 bg-accent rounded hover:bg-accent/80 transition">
+                        {track.image && (
+                          <img src={track.image} alt={track.name} className="w-12 h-12 rounded" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{track.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleShareTrack(track)}
+                          className="gap-1"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Shared Tracks */}
+              {sharedTracks.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Shared Songs ({sharedTracks.length})</h3>
+                  <div className="space-y-2">
+                    {sharedTracks.map((track) => (
+                      <div key={track.id} className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        {track.image && (
+                          <img src={track.image} alt={track.name} className="w-14 h-14 rounded" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{track.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
+                          {track.album && (
+                            <p className="text-xs text-muted-foreground truncate">{track.album}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          {track.previewUrl && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                const audio = new Audio(track.previewUrl);
+                                audio.play();
+                              }}
+                              className="gap-1"
+                            >
+                              <Play className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveSharedTrack(track.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {musicSearchResults.length === 0 && sharedTracks.length === 0 && !musicSearchQuery && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Music className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Search for songs to share with the club</p>
+                </div>
+              )}
             </div>
           </TabsContent>
 
