@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SpotifyTrack } from '@/types';
-import { spotifyService } from '@/services/spotifyService';
+import kkboxService from '@/services/kkboxService';
 
 const MusicPlayer: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,8 +18,8 @@ const MusicPlayer: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const results = await spotifyService.searchTracks(searchQuery);
-      setTracks(results);
+      const results = await kkboxService.searchTracks(searchQuery);
+      setTracks(results as SpotifyTrack[]);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
