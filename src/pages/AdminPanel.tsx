@@ -6,9 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Shield, AlertCircle, CheckCircle, Clock, MessageSquare, Users, FileText, TrendingUp, UserCog,
-  Trash2, Eye, Ban, AlertTriangle, Activity
+  Trash2, Eye, Ban, AlertTriangle, Activity, Wrench
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -72,6 +76,10 @@ export default function AdminPanel() {
   const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, totalClubs: 0, pendingClubs: 0, pendingReports: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  const [estimatedEndTime, setEstimatedEndTime] = useState<Date | null>(null);
+  const [updatingMaintenance, setUpdatingMaintenance] = useState(false);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -79,6 +87,20 @@ export default function AdminPanel() {
       navigate('/feed');
       return;
     }
+
+    // Load system settings (maintenance mode)
+    const loadSettings = async () => {
+      try {
+        const { getSystemSettings } = await import('@/lib/firestore');
+        const settings = await getSystemSettings();
+        setMaintenanceMode(settings.maintenanceMode);
+        setMaintenanceMessage(settings.maintenanceMessage || '');
+        setEstimatedEndTime(settings.estimatedEndTime || null);
+      } catch (err) {
+        console.error('Failed to load system settings:', err);
+      }
+    };
+    loadSettings();
 
     // Listen to help requests
     const helpQuery = query(
@@ -409,7 +431,7 @@ export default function AdminPanel() {
 
         {/* Help Requests Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-6 w-full">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-7 w-full">
             <TabsTrigger value="overview" className="gap-1">
               <TrendingUp className="w-4 h-4" />
               <span className="hidden sm:inline">Overview</span>
@@ -433,6 +455,10 @@ export default function AdminPanel() {
             <TabsTrigger value="activity" className="gap-1">
               <Activity className="w-4 h-4" />
               <span className="hidden sm:inline">Activity</span>
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="gap-1">
+              <Wrench className="w-4 h-4" />
+              <span className="hidden sm:inline">Maintenance</span>
             </TabsTrigger>
           </TabsList>
 
@@ -695,6 +721,139 @@ export default function AdminPanel() {
               </TabsContent>
             );
           })}
+
+          {/* Maintenance Mode Tab */}
+          <TabsContent value="maintenance" className="mt-4">
+                <Card className="border-yellow-500/50 bg-yellow-50/30 dark:bg-yellow-950/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="w-5 h-5" />
+                      Maintenance Mode
+                    </CardTitle>
+                    <CardDescription>
+                      Control site maintenance. When enabled, only admins can access the site.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Enable/Disable Switch */}
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                      <div className="space-y-1">
+                        <Label className="text-base font-medium">
+                          Maintenance Mode
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {maintenanceMode ? 'Site is currently in maintenance mode' : 'Site is operating normally'}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={maintenanceMode}
+                        onCheckedChange={async (checked) => {
+                          setUpdatingMaintenance(true);
+                          try {
+                            const { updateSystemSettings } = await import('@/lib/firestore');
+                            await updateSystemSettings(user!.id, {
+                              maintenanceMode: checked,
+                            });
+                            setMaintenanceMode(checked);
+                            toast({
+                              title: checked ? 'Maintenance mode enabled' : 'Maintenance mode disabled',
+                              description: checked ? 'Non-admin users will see maintenance page' : 'Site is back online',
+                            });
+                          } catch (err) {
+                            console.error(err);
+                            toast({
+                              title: 'Failed to update maintenance mode',
+                              description: (err as Error).message,
+                              variant: 'destructive',
+                            });
+                          } finally {
+                            setUpdatingMaintenance(false);
+                          }
+                        }}
+                        disabled={updatingMaintenance}
+                      />
+                    </div>
+
+                    {maintenanceMode && (
+                      <>
+                        {/* Maintenance Message */}
+                        <div className="space-y-2">
+                          <Label htmlFor="maintenance-message">Maintenance Message</Label>
+                          <Textarea
+                            id="maintenance-message"
+                            placeholder="Enter message to show users during maintenance..."
+                            value={maintenanceMessage}
+                            onChange={(e) => setMaintenanceMessage(e.target.value)}
+                            rows={4}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            This message will be displayed to users on the maintenance page
+                          </p>
+                        </div>
+
+                        {/* Estimated End Time */}
+                        <div className="space-y-2">
+                          <Label htmlFor="estimated-time">Estimated End Time</Label>
+                          <Input
+                            id="estimated-time"
+                            type="datetime-local"
+                            value={estimatedEndTime ? new Date(estimatedEndTime).toISOString().slice(0, 16) : ''}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                setEstimatedEndTime(new Date(e.target.value));
+                              } else {
+                                setEstimatedEndTime(null);
+                              }
+                            }}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Optional: When maintenance is expected to complete
+                          </p>
+                        </div>
+
+                        {/* Save Button */}
+                        <Button
+                          onClick={async () => {
+                            setUpdatingMaintenance(true);
+                            try {
+                              const { updateSystemSettings } = await import('@/lib/firestore');
+                              await updateSystemSettings(user!.id, {
+                                maintenanceMessage,
+                                estimatedEndTime,
+                              });
+                              toast({
+                                title: 'Maintenance settings updated',
+                                description: 'Users will see the updated information',
+                              });
+                            } catch (err) {
+                              console.error(err);
+                              toast({
+                                title: 'Failed to update settings',
+                                description: (err as Error).message,
+                                variant: 'destructive',
+                              });
+                            } finally {
+                              setUpdatingMaintenance(false);
+                            }
+                          }}
+                          disabled={updatingMaintenance}
+                          className="w-full"
+                        >
+                          Save Settings
+                        </Button>
+                      </>
+                    )}
+
+                    {!maintenanceMode && (
+                      <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+                        <p className="text-sm text-green-800 dark:text-green-200">
+                          ✓ Site is operating normally. Users have full access.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
         </Tabs>
       </div>
     </AppLayout>

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Welcome from "./pages/Welcome";
@@ -21,13 +22,55 @@ import ClubDetail from "./pages/ClubDetail";
 import NotificationsPage from "./pages/Notifications";
 import HelpCenter from "./pages/HelpCenter";
 import AdminPanel from "./pages/AdminPanel";
+import Maintenance from "./pages/Maintenance";
 import NotFound from "./pages/NotFound";
 import { UserRole } from "@/types";
+import { getSystemSettings } from "@/lib/firestore";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ element, roles }: { element: JSX.Element; roles?: UserRole[] }) => {
-  const { isAuthenticated, isLoading, hasPermission } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission, user } = useAuth();
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceData, setMaintenanceData] = useState<any>(null);
+  const [checkingMaintenance, setCheckingMaintenance] = useState(true);
+
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const settings = await getSystemSettings();
+        setMaintenanceMode(settings.maintenanceMode);
+        setMaintenanceData(settings);
+      } catch (err) {
+        console.error('Failed to check maintenance mode:', err);
+      } finally {
+        setCheckingMaintenance(false);
+      }
+    };
+
+    checkMaintenance();
+    // Check every 10 seconds
+    const interval = setInterval(checkMaintenance, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (checkingMaintenance) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Loading...
+      </div>
+    );
+  }
+
+  // Show maintenance page for non-admin users
+  if (maintenanceMode && user?.role !== 'admin') {
+    return (
+      <Maintenance 
+        message={maintenanceData?.maintenanceMessage}
+        estimatedEndTime={maintenanceData?.estimatedEndTime}
+      />
+    );
+  }
 
   if (isLoading) {
     return (

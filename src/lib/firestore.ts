@@ -2122,3 +2122,68 @@ export async function getActivityLogs(limit_count: number = 100) {
     } as any;
   });
 }
+
+// System Settings - Maintenance Mode
+const systemSettingsCollection = collection(firestore, 'systemSettings');
+
+export async function getSystemSettings() {
+  try {
+    const settingsDoc = doc(systemSettingsCollection, 'global');
+    const docSnap = await getDoc(settingsDoc);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        maintenanceMode: data.maintenanceMode || false,
+        maintenanceMessage: data.maintenanceMessage || '',
+        estimatedEndTime: data.estimatedEndTime?.toDate?.() || null,
+        updatedAt: data.updatedAt?.toDate?.() || new Date(),
+        updatedBy: data.updatedBy || 'system',
+      };
+    }
+    // Default settings if document doesn't exist
+    return {
+      maintenanceMode: false,
+      maintenanceMessage: '',
+      estimatedEndTime: null,
+      updatedAt: new Date(),
+      updatedBy: 'system',
+    };
+  } catch (err) {
+    console.error('Failed to get system settings:', err);
+    return {
+      maintenanceMode: false,
+      maintenanceMessage: '',
+      estimatedEndTime: null,
+      updatedAt: new Date(),
+      updatedBy: 'system',
+    };
+  }
+}
+
+export async function updateSystemSettings(
+  userId: string,
+  settings: {
+    maintenanceMode?: boolean;
+    maintenanceMessage?: string;
+    estimatedEndTime?: Date;
+  }
+) {
+  // Check if user is admin
+  const userRef = doc(usersCollection, userId);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.data() as UserRecord;
+  
+  if (userData?.role !== 'admin') {
+    throw new Error('Only admins can update system settings');
+  }
+
+  const settingsRef = doc(systemSettingsCollection, 'global');
+  const updateData: any = {
+    ...settings,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  };
+
+  await setDoc(settingsRef, updateData, { merge: true });
+  await logActivity(userId, 'Updated system settings', 'system', 'global');
+}

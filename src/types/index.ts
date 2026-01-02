@@ -105,3 +105,11 @@ export interface Club {
   requiresApproval?: boolean;
   createdAt: Date;
 }
+
+export interface SystemSettings {
+  maintenanceMode: boolean;
+  maintenanceMessage?: string;
+  estimatedEndTime?: Date;
+  updatedAt: Date;
+  updatedBy: string;
+}
