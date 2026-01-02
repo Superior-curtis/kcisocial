@@ -113,3 +113,89 @@ export interface SystemSettings {
   updatedAt: Date;
   updatedBy: string;
 }
+
+// Communication Types
+export interface VoiceMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  audioUrl: string;
+  duration: number;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export interface VideoCall {
+  id: string;
+  initiatorId: string;
+  recipientId: string;
+  status: 'calling' | 'connected' | 'ended' | 'declined';
+  startTime?: Date;
+  endTime?: Date;
+  duration?: number;
+  roomId: string;
+}
+
+export interface VoiceCall {
+  id: string;
+  initiatorId: string;
+  recipientId: string;
+  status: 'calling' | 'connected' | 'ended' | 'declined';
+  startTime?: Date;
+  endTime?: Date;
+  duration?: number;
+}
+
+export interface LiveStream {
+  id: string;
+  broadcasterId: string;
+  title: string;
+  description?: string;
+  status: 'active' | 'ended';
+  startTime: Date;
+  endTime?: Date;
+  viewerCount: number;
+  roomId: string;
+}
+
+export interface AnonymousMessage {
+  id: string;
+  publisherId: string; // Hidden from users, only visible to admins
+  content: string;
+  emoji?: string;
+  publishedAt: Date;
+  likes: number;
+  replies: AnonymousReply[];
+}
+
+export interface AnonymousReply {
+  id: string;
+  publisherId: string;
+  content: string;
+  publishedAt: Date;
+  likes: number;
+}
+
+export interface VideoContent {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'internal' | 'youtube' | 'instagram';
+  source: string;
+  uploadedBy: string;
+  uploadedAt: Date;
+  duration?: number;
+  thumbnail?: string;
+  views: number;
+}
+
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  artist: string;
+  album: string;
+  image: string;
+  duration: number;
+  previewUrl?: string;
+  externalUrl: string;
+}
