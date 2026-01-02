@@ -194,6 +194,7 @@ interface ClubRecord {
   createdAt: Timestamp;
   isApproved: boolean;
   requiresApproval?: boolean; // Whether joining requires admin approval
+  postingPermission?: 'everyone' | 'admins-only'; // Who can post in the club
 }
 
 interface NotificationRecord {
@@ -1641,6 +1642,7 @@ export async function updateClub(
     avatar?: string;
     coverImage?: string;
     isApproved?: boolean;
+    postingPermission?: 'everyone' | 'admins-only';
   }
 ) {
   const clubRef = doc(clubsCollection, clubId);

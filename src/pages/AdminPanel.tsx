@@ -391,7 +391,7 @@ export default function AdminPanel() {
                             followersCount: 0,
                             followingCount: 0,
                             postsCount: 0,
-                            createdAt: selectedUser.createdAt,
+                            createdAt: selectedUser.createdAt instanceof Date ? selectedUser.createdAt : new Date(selectedUser.createdAt),
                           });
                           toast({ title: 'Impersonation started', description: `Now viewing as ${selectedUser.displayName}. This persists across pages.` });
                         }

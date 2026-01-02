@@ -196,6 +196,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedImpersonatingData) {
         try {
           const impersonatedData = JSON.parse(storedImpersonatingData);
+          // Convert createdAt string back to Date
+          if (typeof impersonatedData.createdAt === 'string') {
+            impersonatedData.createdAt = new Date(impersonatedData.createdAt);
+          }
           setActualUser(user);
           setImpersonatingUser(impersonatedData);
           setUser(impersonatedData);
