@@ -1,4 +1,4 @@
-import { Home, MessageCircle, Users, Megaphone, User, Shield, Sparkles, Music, Video, Radio, MessageSquare } from 'lucide-react';
+import { Home, MessageCircle, Users, Megaphone, User, Shield, Sparkles, Music, Video, MessageSquare } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,8 +22,6 @@ export function BottomNav() {
   const moreItems = [
     { to: '/music', icon: Music, label: 'Music' },
     { to: '/videos', icon: Video, label: 'Videos' },
-    { to: '/live', icon: Radio, label: 'Live' },
-    { to: '/anonymous', icon: MessageSquare, label: 'Anonymous' },
   ];
 
   const navItems = user?.role === 'admin' 
