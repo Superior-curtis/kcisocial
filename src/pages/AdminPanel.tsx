@@ -5,13 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Shield, AlertCircle, CheckCircle, Clock, MessageSquare, Users, FileText, TrendingUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Shield, AlertCircle, CheckCircle, Clock, MessageSquare, Users, FileText, TrendingUp, UserCog,
+  Trash2, Eye, Ban, AlertTriangle, Activity
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, getDocs } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { 
+  deleteUser, updateUserStatus, getReports, updateReportStatus, getActivityLogs 
+} from '@/lib/firestore';
+import type { UserRole } from '@/types';
 
 interface HelpRequest {
   id: string;
@@ -24,11 +32,44 @@ interface HelpRequest {
   createdAt: Date;
 }
 
+interface UserManagement {
+  id: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  avatar?: string;
+  createdAt: Date;
+  accountStatus?: 'active' | 'banned' | 'suspended';
+}
+
+interface Report {
+  id: string;
+  type: string;
+  targetId: string;
+  reportedBy: string;
+  reason: string;
+  description: string;
+  status: 'pending' | 'investigating' | 'resolved' | 'dismissed';
+  createdAt: Date;
+}
+
+interface ActivityLog {
+  id: string;
+  userId: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  createdAt: Date;
+}
+
 export default function AdminPanel() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
-  const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, totalClubs: 0, pendingClubs: 0 });
+  const [users, setUsers] = useState<UserManagement[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, totalClubs: 0, pendingClubs: 0, pendingReports: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,6 +102,24 @@ export default function AdminPanel() {
       setHelpRequests(requests);
     });
 
+    // Listen to all users for management
+    const usersQuery = query(collection(firestore, 'users'), orderBy('createdAt', 'desc'));
+    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+      const usersList: UserManagement[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        usersList.push({
+          id: doc.id,
+          email: data.email,
+          displayName: data.displayName || data.name,
+          role: data.role,
+          avatar: data.avatar || data.photoURL,
+          createdAt: data.createdAt?.toDate() || new Date(),
+        });
+      });
+      setUsers(usersList);
+    });
+
     // Get stats
     Promise.all([
       onSnapshot(collection(firestore, 'users'), (snap) => {
@@ -73,10 +132,52 @@ export default function AdminPanel() {
         const pending = snap.docs.filter(doc => !doc.data().isApproved).length;
         setStats(prev => ({ ...prev, totalClubs: snap.size, pendingClubs: pending }));
       }),
-    ]).then(() => setLoading(false));
+    ]).then(() => {
+      // Load reports
+      const loadReports = async () => {
+        try {
+          const reportsData = await getReports('pending');
+          setReports(reportsData.map(r => ({
+            id: r.id,
+            type: r.type,
+            targetId: r.targetId,
+            reportedBy: r.reportedBy,
+            reason: r.reason,
+            description: r.description,
+            status: r.status,
+            createdAt: r.createdAt?.toDate?.() || new Date(r.createdAt),
+          })));
+          setStats(prev => ({ ...prev, pendingReports: reportsData.length }));
+        } catch (error) {
+          console.error('Failed to load reports:', error);
+        }
+      };
+      
+      // Load activity logs
+      const loadActivityLogs = async () => {
+        try {
+          const logsData = await getActivityLogs(50);
+          setActivityLogs(logsData.map(l => ({
+            id: l.id,
+            userId: l.userId,
+            action: l.action,
+            targetType: l.targetType,
+            targetId: l.targetId,
+            createdAt: l.createdAt?.toDate?.() || new Date(l.createdAt),
+          })));
+        } catch (error) {
+          console.error('Failed to load activity logs:', error);
+        }
+      };
+      
+      loadReports();
+      loadActivityLogs();
+      setLoading(false);
+    });
 
     return () => {
       unsubHelp();
+      unsubUsers();
     };
   }, [user, navigate]);
 
@@ -87,6 +188,59 @@ export default function AdminPanel() {
     } catch (error) {
       console.error('Failed to update status:', error);
       toast({ title: 'Failed to update', variant: 'destructive' });
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: UserRole) => {
+    try {
+      await updateDoc(doc(firestore, 'users', userId), { role: newRole });
+      toast({ title: 'Role updated', description: `User role changed to ${newRole}` });
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      toast({ title: 'Failed to update role', variant: 'destructive' });
+    }
+  };
+
+  const handleBanUser = async (userId: string) => {
+    try {
+      await updateUserStatus(userId, user!.id, 'banned');
+      toast({ title: 'User banned', description: 'User has been banned from the platform' });
+    } catch (error) {
+      console.error('Failed to ban user:', error);
+      toast({ title: 'Failed to ban user', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user and all their content?')) return;
+    try {
+      await deleteUser(userId, user!.id);
+      toast({ title: 'User deleted', description: 'User and their content have been removed' });
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      toast({ title: 'Failed to delete user', variant: 'destructive' });
+    }
+  };
+
+  const handleReportAction = async (reportId: string, action: 'investigating' | 'resolved' | 'dismissed') => {
+    try {
+      await updateReportStatus(reportId, action, user!.id, `Admin action: ${action}`);
+      toast({ title: 'Report updated', description: `Report marked as ${action}` });
+      // Reload reports
+      const updatedReports = await getReports();
+      setReports(updatedReports.map((r: any) => ({
+        id: r.id,
+        type: r.type,
+        targetId: r.targetId,
+        reportedBy: r.reportedBy,
+        reason: r.reason,
+        description: r.description,
+        status: r.status,
+        createdAt: r.createdAt?.toDate?.() || new Date(r.createdAt),
+      })));
+    } catch (error) {
+      console.error('Failed to update report:', error);
+      toast({ title: 'Failed to update report', variant: 'destructive' });
     }
   };
 
@@ -174,22 +328,223 @@ export default function AdminPanel() {
         </div>
 
         {/* Help Requests Tabs */}
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList>
-            <TabsTrigger value="pending" className="gap-2">
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-6 w-full">
+            <TabsTrigger value="overview" className="gap-1">
+              <TrendingUp className="w-4 h-4" />
+              <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-1">
+              <UserCog className="w-4 h-4" />
+              <span className="hidden sm:inline">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-1">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="hidden sm:inline">Reports ({stats.pendingReports})</span>
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="gap-1">
               <Clock className="w-4 h-4" />
-              Pending ({pendingRequests.length})
+              <span className="hidden sm:inline">Pending ({pendingRequests.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="in-progress" className="gap-2">
+            <TabsTrigger value="in-progress" className="gap-1">
               <AlertCircle className="w-4 h-4" />
-              In Progress ({inProgressRequests.length})
+              <span className="hidden sm:inline">Progress ({inProgressRequests.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="resolved" className="gap-2">
-              <CheckCircle className="w-4 h-4" />
-              Resolved ({resolvedRequests.length})
+            <TabsTrigger value="activity" className="gap-1">
+              <Activity className="w-4 h-4" />
+              <span className="hidden sm:inline">Activity</span>
             </TabsTrigger>
           </TabsList>
 
+          {/* User Management Tab */}
+          <TabsContent value="users" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>Manage user roles and permissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {users.map((managedUser) => (
+                    <div key={managedUser.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={managedUser.avatar} />
+                          <AvatarFallback>{managedUser.displayName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{managedUser.displayName}</div>
+                          <div className="text-sm text-muted-foreground">{managedUser.email}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Joined {formatDistanceToNow(managedUser.createdAt, { addSuffix: true })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={managedUser.role === 'admin' ? 'destructive' : 'secondary'}>
+                          {managedUser.role}
+                        </Badge>
+                        <Select
+                          value={managedUser.role}
+                          onValueChange={(value) => updateUserRole(managedUser.id, value as UserRole)}
+                          disabled={managedUser.id === user?.id}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="student">Student</SelectItem>
+                            <SelectItem value="teacher">Teacher</SelectItem>
+                            <SelectItem value="official">Official</SelectItem>
+                            <SelectItem value="admin">Administrator</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {managedUser.id !== user?.id && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleBanUser(managedUser.id)}
+                            >
+                              <Ban className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleDeleteUser(managedUser.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-4 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalPosts}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Reports</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.pendingReports}</div>
+                  <p className="text-xs text-muted-foreground mt-1">pending</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Activity</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{activityLogs.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">last 50 logs</p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Reports</CardTitle>
+                <CardDescription>Review and manage reported content</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {reports.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No reports pending</p>
+                ) : (
+                  <div className="space-y-4">
+                    {reports.map((report) => (
+                      <div key={report.id} className="border rounded-lg p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-medium capitalize">{report.type}: {report.targetId.slice(0, 8)}</div>
+                            <div className="text-sm text-muted-foreground">{report.reason}</div>
+                          </div>
+                          <Badge variant="outline">{report.status}</Badge>
+                        </div>
+                        <p className="text-sm">{report.description}</p>
+                        <div className="text-xs text-muted-foreground">
+                          Reported {formatDistanceToNow(report.createdAt, { addSuffix: true })}
+                        </div>
+                        {report.status === 'pending' && (
+                          <div className="flex gap-2 mt-3">
+                            <Button size="sm" onClick={() => handleReportAction(report.id, 'investigating')}>
+                              Investigate
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleReportAction(report.id, 'resolved')}>
+                              Resolve
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleReportAction(report.id, 'dismissed')}>
+                              Dismiss
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Activity Log Tab */}
+          <TabsContent value="activity" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Log</CardTitle>
+                <CardDescription>Platform activity monitoring</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {activityLogs.map((log) => (
+                    <div key={log.id} className="flex items-start justify-between text-sm py-2 border-b last:border-0">
+                      <div>
+                        <div className="font-medium">{log.action}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(log.createdAt, { addSuffix: true })}
+                        </div>
+                      </div>
+                      {log.targetType && (
+                        <Badge variant="secondary" className="text-xs">
+                          {log.targetType}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pending/In-Progress/Resolved Tabs */}
           {['pending', 'in-progress', 'resolved'].map((status) => {
             const requests = status === 'pending' ? pendingRequests : 
                            status === 'in-progress' ? inProgressRequests : resolvedRequests;

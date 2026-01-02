@@ -2,6 +2,35 @@ export type UserRole = 'student' | 'teacher' | 'admin' | 'official' | 'club';
 
 export type OnlineStatus = 'online' | 'offline' | 'hidden';
 
+export type ReportStatus = 'pending' | 'investigating' | 'resolved' | 'dismissed';
+export type ReportReason = 'inappropriate-content' | 'harassment' | 'spam' | 'misinformation' | 'other';
+export type ReportType = 'post' | 'user' | 'comment';
+
+export interface Report {
+  id: string;
+  type: ReportType;
+  targetId: string;  // post ID, user ID, or comment ID
+  targetAuthorId?: string;
+  reportedBy: string;
+  reason: ReportReason;
+  description: string;
+  status: ReportStatus;
+  createdAt: Date;
+  resolvedAt?: Date;
+  resolvedBy?: string;
+  resolutionNotes?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  action: string;
+  targetType?: string;  // 'post', 'user', 'comment', 'club'
+  targetId?: string;
+  description: string;
+  createdAt: Date;
+}
+
 export interface User {
   id: string;
   email: string;

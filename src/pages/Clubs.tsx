@@ -75,8 +75,8 @@ export default function Clubs() {
   };
 
   const approve = async (clubId: string) => {
-    if (!user || user.role !== 'admin') {
-      toast({ title: 'Admin only', variant: 'destructive' });
+    if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
+      toast({ title: 'Admin or Teacher only', variant: 'destructive' });
       return;
     }
     setApprovingId(clubId);
@@ -169,7 +169,7 @@ export default function Clubs() {
                     Pending
                   </span>
                 )}
-                {user?.role === 'admin' && !club.isApproved && (
+                {user && (user.role === 'admin' || user.role === 'teacher') && !club.isApproved && (
                   <Button 
                     size="xs" 
                     className="absolute top-2 right-2 text-xs"

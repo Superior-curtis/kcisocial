@@ -23,7 +23,7 @@ export function CreatePost({ open, onOpenChange }: CreatePostProps) {
   const [asOfficial, setAsOfficial] = useState(false);
 
   const canOfficial = hasPermission(["admin", "official"]);
-  const canAnnouncement = hasPermission(["teacher", "admin", "official"]);
+  const canAnnouncement = hasPermission(["admin", "teacher", "official"]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

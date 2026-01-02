@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, BadgeCheck, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, BadgeCheck, Trash2, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
-import { toggleLike, toggleSavePost, deletePost } from '@/lib/firestore';
+import { toggleLike, toggleSavePost, deletePost, editPost } from '@/lib/firestore';
 import { toast } from '@/hooks/use-toast';
 import { CommentsDialog } from '@/components/post/CommentsDialog';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +27,8 @@ export function PostCard({ post }: PostCardProps) {
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(post.content);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const { user } = useAuth();
   const [openComments, setOpenComments] = useState(false);
@@ -112,14 +114,18 @@ export function PostCard({ post }: PostCardProps) {
     if (!user) return;
     
     const isAdmin = user.role === 'admin';
-    const isOwner = post.authorId === user.id;
+    const isTeacher = user.role === 'teacher';
+    const isOwner = post.author.id === user.id;
     
-    if (!isAdmin && !isOwner) {
-      toast({ title: "Permission denied", description: "You can only delete your own posts.", variant: "destructive" });
+    // Admin can delete any post, teacher can delete their own or student posts
+    const canDelete = isOwner || isAdmin || (isTeacher && post.author.role === 'student');
+    
+    if (!canDelete) {
+      toast({ title: "Permission denied", description: "You don't have permission to delete this post.", variant: "destructive" });
       return;
     }
     
-    const message = isAdmin && !isOwner ? 'Delete this post as admin?' : 'Delete this post?';
+    const message = (isAdmin || isTeacher) && !isOwner ? 'Delete this post?' : 'Delete this post?';
     if (!confirm(message)) return;
     
     setIsDeleting(true);
@@ -130,6 +136,22 @@ export function PostCard({ post }: PostCardProps) {
       console.error("Delete failed", error);
       toast({ title: "Could not delete post", description: (error as Error).message, variant: "destructive" });
       setIsDeleting(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!user || !editedContent.trim()) {
+      toast({ title: "Invalid edit", description: "Post content cannot be empty." });
+      return;
+    }
+
+    try {
+      await editPost(post.id, user.id, { content: editedContent });
+      toast({ title: "Post updated", description: "Your post has been updated" });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Edit failed", error);
+      toast({ title: "Could not edit post", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -198,7 +220,7 @@ export function PostCard({ post }: PostCardProps) {
           </div>
         </div>
         
-        {user && (user.id === post.authorId || user.role === 'admin') && (
+        {user && (user.id === post.author.id || user.role === 'admin') && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm">
@@ -206,15 +228,21 @@ export function PostCard({ post }: PostCardProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {(user.role === 'admin' || user.id === post.author.id) && (
+                <DropdownMenuItem onClick={() => setIsEditing(!isEditing)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Post
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleDelete} className="text-destructive" disabled={isDeleting}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                {isDeleting ? 'Deleting...' : (user.role === 'admin' && user.id !== post.authorId) ? 'Delete (Admin)' : 'Delete Post'}
+                {isDeleting ? 'Deleting...' : (user.role === 'admin' && user.id !== post.author.id) ? 'Delete (Admin)' : 'Delete Post'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
         
-        {user && user.id !== post.authorId && user.role !== 'admin' && (
+        {user && user.id !== post.author.id && user.role !== 'admin' && (
           <Button variant="ghost" size="icon-sm">
             <MoreHorizontal className="w-5 h-5" />
           </Button>
@@ -222,26 +250,26 @@ export function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Post Media (Images/Videos) */}
-      {((post.images && post.images.length > 0) || (post.media && post.media.length > 0)) ? (
+      {((post.images && post.images.length > 0)) ? (
         <div className="relative aspect-square bg-muted group">
-          {isVideo((post.images || post.media)?.[currentMediaIndex] || '') ? (
+          {isVideo((post.images)?.[currentMediaIndex] || '') ? (
             <video
               key={currentMediaIndex}
-              src={(post.images || post.media)?.[currentMediaIndex]}
+              src={(post.images)?.[currentMediaIndex]}
               className="w-full h-full object-cover"
               controls
               playsInline
             />
           ) : (
             <img
-              src={(post.images || post.media)?.[currentMediaIndex]}
+              src={(post.images)?.[currentMediaIndex]}
               alt="Post content"
               className="w-full h-full object-cover"
             />
           )}
           
           {/* Navigation Buttons for Multiple Images */}
-          {(post.images || post.media)!.length > 1 && (
+          {(post.images)!.length > 1 && (
             <>
               <Button
                 variant="ghost"
@@ -262,7 +290,7 @@ export function PostCard({ post }: PostCardProps) {
               
               {/* Dots Indicator */}
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {(post.images || post.media)?.map((_, idx) => (
+                {(post.images)?.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentMediaIndex(idx)}
@@ -291,7 +319,36 @@ export function PostCard({ post }: PostCardProps) {
 
       {/* Post Content */}
       <div className="px-4 pt-3 pb-1">
-        <p className="text-sm text-foreground whitespace-pre-wrap break-words">{post.content}</p>
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea 
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full p-2 border rounded bg-background text-foreground text-sm resize-none"
+              rows={4}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button 
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditedContent(post.content);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="sm"
+                onClick={handleEdit}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{post.content}</p>
+        )}
       </div>
 
       {/* Post Actions */}

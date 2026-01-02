@@ -122,10 +122,10 @@ export default function Profile() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'teacher': return { label: 'Teacher', className: 'bg-warning/10 text-warning border-warning/20' };
-      case 'admin': return { label: 'Admin', className: 'bg-destructive/10 text-destructive border-destructive/20' };
-      case 'official': return { label: 'Official', className: 'bg-primary/10 text-primary border-primary/20' };
-      case 'club': return { label: 'Club', className: 'bg-success/10 text-success border-success/20' };
+      case 'teacher': return { label: 'Teacher', className: 'bg-blue-500/10 text-blue-500 border-blue-500/20' };
+      case 'admin': return { label: 'Administrator', className: 'bg-red-600/10 text-red-600 border-red-600/20' };
+      case 'official': return { label: 'Official', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+      case 'club': return { label: 'Club', className: 'bg-green-500/10 text-green-500 border-green-500/20' };
       default: return { label: 'Student', className: 'bg-secondary text-secondary-foreground border-border' };
     }
   };

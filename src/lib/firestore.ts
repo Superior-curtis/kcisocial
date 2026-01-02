@@ -1,5 +1,7 @@
 import type { User as FirebaseUser } from "firebase/auth";
 import {
+  addDoc,
+  arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
@@ -601,15 +603,27 @@ export async function deletePost(postId: string, userId: string) {
     throw new Error("Post not found");
   }
   
-  // Check if user is the author or an admin
+  // Check if user is the author, admin, or teacher (teacher can delete student posts)
   const postData = postSnap.data() as PostRecord;
   const userRef = doc(usersCollection, userId);
   const userSnap = await getDoc(userRef);
   const userData = userSnap.data() as UserRecord;
-  const isAdmin = userData?.role === "admin";
   
-  if (postData.authorId !== userId && !isAdmin) {
-    throw new Error("You can only delete your own posts");
+  const isAdmin = userData?.role === "admin";
+  const isTeacher = userData?.role === "teacher";
+  const isOwner = postData.authorId === userId;
+  
+  // Get post author role if deleter is a teacher
+  let canDelete = isOwner || isAdmin;
+  if (isTeacher && !isOwner) {
+    const authorRef = doc(usersCollection, postData.authorId);
+    const authorSnap = await getDoc(authorRef);
+    const authorData = authorSnap.data() as UserRecord;
+    canDelete = authorData?.role === "student"; // Teacher can only delete student posts
+  }
+  
+  if (!canDelete) {
+    throw new Error("You don't have permission to delete this post");
   }
   
   await runTransaction(firestore, async (tx) => {
@@ -1862,4 +1876,197 @@ export async function repairPostTypes() {
   } catch (error) {
     console.error("Error repairing posts:", error);
   }
+}
+
+// ========== ADMIN FUNCTIONS ==========
+
+// Edit post (admin only)
+export async function editPost(postId: string, userId: string, updates: { content?: string; images?: string[] }) {
+  const postRef = doc(postsCollection, postId);
+  const postSnap = await getDoc(postRef);
+  
+  if (!postSnap.exists()) {
+    throw new Error("Post not found");
+  }
+  
+  const postData = postSnap.data() as PostRecord;
+  const userRef = doc(usersCollection, userId);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.data() as UserRecord;
+  
+  const isAdmin = userData?.role === "admin";
+  const isOwner = postData.authorId === userId;
+  
+  if (!isAdmin && !isOwner) {
+    throw new Error("You don't have permission to edit this post");
+  }
+  
+  const updateData: any = {};
+  if (updates.content !== undefined) updateData.content = updates.content;
+  if (updates.images !== undefined) updateData.images = updates.images;
+  updateData.updatedAt = new Date();
+  if (isAdmin && !isOwner) updateData.editedByAdmin = true;
+  
+  await updateDoc(postRef, updateData);
+  await logActivity(userId, `Edited post ${postId}`, 'post', postId);
+}
+
+// Report system
+export async function createReport(
+  reportType: 'post' | 'user' | 'comment',
+  targetId: string,
+  reportedBy: string,
+  reason: string,
+  description: string,
+  targetAuthorId?: string
+) {
+  const reportsCollection = collection(firestore, 'reports');
+  
+  const report = {
+    type: reportType,
+    targetId,
+    targetAuthorId,
+    reportedBy,
+    reason,
+    description,
+    status: 'pending',
+    createdAt: new Date(),
+  };
+  
+  const docRef = await addDoc(reportsCollection, report);
+  await logActivity(reportedBy, `Created report for ${reportType}`, reportType, targetId);
+  
+  return docRef.id;
+}
+
+export async function updateReportStatus(
+  reportId: string,
+  status: 'investigating' | 'resolved' | 'dismissed',
+  adminId: string,
+  notes?: string
+) {
+  const reportRef = doc(firestore, 'reports', reportId);
+  
+  await updateDoc(reportRef, {
+    status,
+    resolvedAt: new Date(),
+    resolvedBy: adminId,
+    resolutionNotes: notes,
+  });
+  
+  await logActivity(adminId, `Updated report ${reportId} to ${status}`, 'report', reportId);
+}
+
+// Activity logging
+export async function logActivity(
+  userId: string,
+  description: string,
+  targetType?: string,
+  targetId?: string
+) {
+  try {
+    const logsCollection = collection(firestore, 'activityLogs');
+    
+    await addDoc(logsCollection, {
+      userId,
+      action: description,
+      targetType,
+      targetId,
+      description,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error('Failed to log activity:', error);
+  }
+}
+
+// Delete user (admin only)
+export async function deleteUser(userId: string, adminId: string) {
+  const userRef = doc(usersCollection, userId);
+  const userSnap = await getDoc(userRef);
+  
+  if (!userSnap.exists()) {
+    throw new Error('User not found');
+  }
+  
+  // Verify requester is admin
+  const adminRef = doc(usersCollection, adminId);
+  const adminSnap = await getDoc(adminRef);
+  const adminData = adminSnap.data() as UserRecord;
+  
+  if (adminData?.role !== 'admin') {
+    throw new Error('Only admins can delete users');
+  }
+  
+  // Delete user's posts first
+  const userPostsQuery = query(
+    collection(firestore, 'posts'),
+    where('authorId', '==', userId)
+  );
+  const userPostsSnap = await getDocs(userPostsQuery);
+  for (const postDoc of userPostsSnap.docs) {
+    await deleteDoc(postDoc.ref);
+  }
+  
+  // Delete user document
+  await deleteDoc(userRef);
+  await logActivity(adminId, `Deleted user ${userId}`, 'user', userId);
+}
+
+// Ban/unban user
+export async function updateUserStatus(userId: string, adminId: string, status: 'active' | 'banned' | 'suspended') {
+  const userRef = doc(usersCollection, userId);
+  
+  await updateDoc(userRef, {
+    accountStatus: status,
+    statusUpdatedAt: new Date(),
+    statusUpdatedBy: adminId,
+  });
+  
+  await logActivity(adminId, `Changed user status to ${status}`, 'user', userId);
+}
+
+// Get reports (admin only)
+export async function getReports(status?: string) {
+  let reportsQuery;
+  
+  if (status) {
+    reportsQuery = query(
+      collection(firestore, 'reports'),
+      where('status', '==', status),
+      orderBy('createdAt', 'desc')
+    );
+  } else {
+    reportsQuery = query(
+      collection(firestore, 'reports'),
+      orderBy('createdAt', 'desc')
+    );
+  }
+  
+  const snapshot = await getDocs(reportsQuery);
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data
+    } as any;
+  });
+}
+
+// Get activity logs (admin only)
+export async function getActivityLogs(limit_count: number = 100) {
+  const logsQuery = query(
+    collection(firestore, 'activityLogs'),
+    orderBy('createdAt', 'desc'),
+    limit(limit_count)
+  );
+  
+  const snapshot = await getDocs(logsQuery);
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data
+    } as any;
+  });
 }
