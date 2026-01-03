@@ -41,14 +41,18 @@ class SimpleVoIPService {
     onRemoteStream: (stream: MediaStream) => void
   ): Promise<string> {
     try {
+      console.log('[VoIP Service] Starting call:', {userId, recipientId, callType});
+      
       // Get local media
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: callType === 'video',
         audio: true
       });
+      console.log('[VoIP Service] Got local stream');
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection(this.configuration);
+      console.log('[VoIP Service] Created peer connection');
 
       // Add local tracks
       this.localStream.getTracks().forEach(track => {
@@ -71,6 +75,7 @@ class SimpleVoIPService {
       // Create offer
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
+      console.log('[VoIP Service] Created and set offer');
 
       // Save offer to Firestore
       const callDoc = await addDoc(collection(firestore, 'voip_calls'), {
@@ -81,16 +86,18 @@ class SimpleVoIPService {
           sdp: offer.sdp
         },
         callType,
-        status: 'calling',
+        status: 'pending',
         timestamp: Date.now()
       });
 
       this.callId = callDoc.id;
+      console.log('[VoIP Service] Saved call document:', this.callId);
 
       // Listen for answer
       onSnapshot(doc(firestore, 'voip_calls', this.callId), async (snapshot) => {
         const data = snapshot.data();
         if (data?.answer && this.peerConnection) {
+          console.log('[VoIP Service] Received answer from callee');
           const answer = new RTCSessionDescription(data.answer);
           await this.peerConnection.setRemoteDescription(answer);
         }
@@ -138,22 +145,30 @@ class SimpleVoIPService {
     onRemoteStream: (stream: MediaStream) => void
   ): Promise<void> {
     try {
+      console.log('[VoIP Service] Answering call:', callId);
       this.callId = callId;
 
       // Get call offer
       const callDoc = await getDocs(query(collection(firestore, 'voip_calls'), where('__name__', '==', callId)));
       const callData = callDoc.docs[0]?.data();
       
-      if (!callData) throw new Error('Call not found');
+      if (!callData) {
+        console.error('[VoIP Service] Call not found!');
+        throw new Error('Call not found');
+      }
+      
+      console.log('[VoIP Service] Found call document:', callData);
 
       // Get local media
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: callData.callType === 'video',
         audio: true
       });
+      console.log('[VoIP Service] Got local stream for answer');
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection(this.configuration);
+      console.log('[VoIP Service] Created peer connection for answer');
 
       // Add local tracks
       this.localStream.getTracks().forEach(track => {
@@ -176,10 +191,12 @@ class SimpleVoIPService {
       // Set remote description (offer)
       const offer = new RTCSessionDescription(callData.offer);
       await this.peerConnection.setRemoteDescription(offer);
+      console.log('[VoIP Service] Set remote description (offer)');
 
       // Create answer
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
+      console.log('[VoIP Service] Created and set answer');
 
       // Save answer
       await updateDoc(doc(firestore, 'voip_calls', callId), {
@@ -187,8 +204,9 @@ class SimpleVoIPService {
           type: answer.type,
           sdp: answer.sdp
         },
-        status: 'connected'
+        status: 'answered'
       });
+      console.log('[VoIP Service] Saved answer to Firestore');
 
       // Handle ICE candidates
       this.peerConnection.onicecandidate = async (event) => {

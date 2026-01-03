@@ -42,6 +42,8 @@ export default function Chat() {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [currentCallId, setCurrentCallId] = useState<string>('');
+  const [isIncomingCallAnswered, setIsIncomingCallAnswered] = useState(false);
+  const [answeredCallInfo, setAnsweredCallInfo] = useState<{from: string, fromName: string, fromAvatar: string} | null>(null);
   
   // Check if this is a group chat
   const queryParams = new URLSearchParams(location.search);
@@ -163,9 +165,15 @@ export default function Chat() {
   // Handle incoming call answer
   const handleAnswerCall = () => {
     if (!incomingCall) return;
+    setAnsweredCallInfo({
+      from: incomingCall.from,
+      fromName: incomingCall.fromName,
+      fromAvatar: incomingCall.fromAvatar
+    });
     setShowVideoCall(true);
     setCallType(incomingCall.callType);
-    setIncomingCall(null);
+    setIsIncomingCallAnswered(true);
+    setIncomingCall(null); // Hide the dialog
   };
 
   // Handle incoming call decline
@@ -174,6 +182,8 @@ export default function Chat() {
     await voipNotificationService.declineCall(incomingCall.callId);
     setIncomingCall(null);
     setCurrentCallId('');
+    setIsIncomingCallAnswered(false);
+    setAnsweredCallInfo(null);
   };
 
   const handleLeaveGroup = async () => {
@@ -669,16 +679,18 @@ export default function Chat() {
         <SimpleVoIPCall
           userId={user?.id || ''}
           userName={user?.displayName || 'User'}
-          recipientId={incomingCall ? incomingCall.from : otherId}
-          recipientName={incomingCall ? incomingCall.fromName : otherUserName}
-          recipientAvatar={incomingCall ? incomingCall.fromAvatar : (otherUserProfile?.photoURL || '')}
+          recipientId={isIncomingCallAnswered && answeredCallInfo ? answeredCallInfo.from : otherId}
+          recipientName={isIncomingCallAnswered && answeredCallInfo ? answeredCallInfo.fromName : otherUserName}
+          recipientAvatar={isIncomingCallAnswered && answeredCallInfo ? answeredCallInfo.fromAvatar : (otherUserProfile?.photoURL || '')}
           callType={callType}
-          isIncoming={!!incomingCall}
+          isIncoming={isIncomingCallAnswered}
           callId={currentCallId}
           onEndCall={() => {
             setShowVideoCall(false);
             setIncomingCall(null);
             setCurrentCallId('');
+            setIsIncomingCallAnswered(false);
+            setAnsweredCallInfo(null);
           }}
         />
       )}

@@ -20,6 +20,7 @@ import UserProfile from "./pages/UserProfile";
 import Settings from "./pages/Settings";
 import ClubDetail from "./pages/ClubDetail";
 import MusicHall from "./pages/MusicHall";
+import MusicHallList from "./pages/MusicHallList";
 import NotificationsPage from "./pages/Notifications";
 import HelpCenter from "./pages/HelpCenter";
 import AdminPanel from "./pages/AdminPanel";
@@ -111,6 +112,8 @@ const App = () => (
             <Route path="/clubs" element={<ProtectedRoute element={<Clubs />} />} />
             <Route path="/clubs/:clubId" element={<ProtectedRoute element={<ClubDetail />} />} />
             <Route path="/clubs/:clubId/music" element={<ProtectedRoute element={<MusicHall />} />} />
+            <Route path="/music-hall" element={<ProtectedRoute element={<MusicHallList />} />} />
+            <Route path="/music-hall/:roomId" element={<ProtectedRoute element={<MusicHall />} />} />
             <Route path="/official" element={<ProtectedRoute element={<Official />} />} />
             <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
             <Route path="/profile/:uid" element={<ProtectedRoute element={<UserProfile />} />} />

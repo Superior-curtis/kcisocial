@@ -1,7 +1,7 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Plus, Upload, Edit, Trash2 } from 'lucide-react';
+import { Users, Plus, Upload, Edit, Trash2, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClubs } from '@/hooks/useClubs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,7 +12,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClub, approveClub, joinClub, leaveClub, uploadMedia, deleteClub, updateClub } from '@/lib/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import MusicPlayer from '@/components/MusicPlayer';
 
 export default function Clubs() {
   const { clubs, isLoading } = useClubs();
@@ -208,10 +207,16 @@ export default function Clubs() {
   return (
     <AppLayout title="Clubs">
       <div className="p-4">
-        {/* Music Section - Outside of clubs */}
+        {/* Music Hall Button - Prominent at top */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-4">🎵 Music Player</h2>
-          <MusicPlayer />
+          <Button
+            onClick={() => navigate('/music-hall')}
+            className="w-full h-24 text-lg font-semibold bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 gap-3"
+            size="lg"
+          >
+            <Music className="w-8 h-8" />
+            🎵 Enter Music Hall
+          </Button>
         </div>
 
         {/* Clubs Section */}

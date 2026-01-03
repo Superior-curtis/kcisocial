@@ -43,20 +43,25 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
       try {
         if (isIncoming && callId) {
           // Answer incoming call
+          console.log('[VoIP] Answering incoming call:', callId);
           await simpleVoIPService.answerCall(callId, userId, (remoteStream) => {
+            console.log('[VoIP] Received remote stream');
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = remoteStream;
             }
             setIsConnected(true);
           });
-        } else {
+        } else if (!isIncoming) {
           // Start outgoing call
-          await simpleVoIPService.startCall(userId, recipientId, callType, (remoteStream) => {
+          console.log('[VoIP] Starting outgoing call to:', recipientId);
+          const newCallId = await simpleVoIPService.startCall(userId, recipientId, callType, (remoteStream) => {
+            console.log('[VoIP] Received remote stream');
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = remoteStream;
             }
             setIsConnected(true);
           });
+          console.log('[VoIP] Call started with ID:', newCallId);
         }
 
         // Set local stream
@@ -67,14 +72,13 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
 
         setIsAnswered(true);
       } catch (error) {
-        console.error('Call failed:', error);
+        console.error('[VoIP] Call failed:', error);
         onEndCall();
       }
     };
 
-    if (isAnswered || isIncoming) {
-      initCall();
-    }
+    // Run initialization only once when component mounts
+    initCall();
 
     // Timer
     const interval = setInterval(() => {
@@ -86,7 +90,7 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
     return () => {
       clearInterval(interval);
     };
-  }, [isAnswered]);
+  }, []); // Run only once on mount
 
   const handleEndCall = async () => {
     await simpleVoIPService.endCall();
