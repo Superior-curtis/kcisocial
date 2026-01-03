@@ -1,6 +1,6 @@
 /**
  * Music Service
- * Search music from multiple sources (iTunes + Spotify via public endpoints)
+ * KKBOX API with OAuth 2.0 authentication + Spotify fallback
  */
 
 interface Track {
@@ -12,74 +12,118 @@ interface Track {
   duration?: number;
   previewUrl?: string;
   externalUrl?: string;
-  source?: 'itunes' | 'spotify';
+  source?: 'kkbox' | 'spotify';
   spotifyUrl?: string;
   isrcCode?: string;
 }
 
 class MusicService {
-  private itunesUrl = 'https://itunes.apple.com';
-  private spotifySearchUrl = 'https://open.spotify.com/search';
+  private kkboxClientId = '58dff52bea1298c549b6a9a44fd91610';
+  private kkboxClientSecret = 'ac1271e37d61676b67722d29e671039a';
+  private kkboxAccessToken: string | null = null;
+  private kkboxTokenExpiry: number = 0;
+  private kkboxAuthUrl = 'https://account.kkbox.com/oauth2/token';
+  private kkboxApiUrl = 'https://api.kkbox.com/v1.1';
 
   /**
-   * Search tracks from iTunes and Spotify
+   * Get KKBOX access token using client credentials flow
+   */
+  private async getKKBOXAccessToken(): Promise<string> {
+    // Check if we have a valid cached token
+    if (this.kkboxAccessToken && Date.now() < this.kkboxTokenExpiry) {
+      return this.kkboxAccessToken;
+    }
+
+    try {
+      const response = await fetch(this.kkboxAuthUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + btoa(`${this.kkboxClientId}:${this.kkboxClientSecret}`)
+        },
+        body: 'grant_type=client_credentials'
+      });
+
+      if (!response.ok) {
+        throw new Error(`KKBOX auth failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.kkboxAccessToken = data.access_token;
+      // Token expires in 1 hour, cache for 55 minutes to be safe
+      this.kkboxTokenExpiry = Date.now() + (55 * 60 * 1000);
+      
+      return data.access_token;
+    } catch (error) {
+      console.error('KKBOX authentication failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search tracks from KKBOX with full song playback support
    */
   async searchTracks(query: string, limit: number = 20): Promise<Track[]> {
     try {
-      // Search iTunes first
-      const itunesResults = await this.searchItunes(query, limit);
+      const accessToken = await this.getKKBOXAccessToken();
       
-      // Also create Spotify search link for users
+      const response = await fetch(
+        `${this.kkboxApiUrl}/search?q=${encodeURIComponent(query)}&type=track&territory=TW&limit=${limit}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`KKBOX API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const tracks = data.tracks?.data || [];
+
+      const kkboxTracks = tracks.map((track: any) => ({
+        id: track.id,
+        name: track.name,
+        artist: track.album?.artist?.name || 'Unknown Artist',
+        album: track.album?.name,
+        image: track.album?.images?.[0]?.url,
+        duration: track.duration,
+        previewUrl: track.url, // KKBOX provides full song URLs!
+        externalUrl: track.url,
+        source: 'kkbox' as const,
+      }));
+
+      // Also add Spotify search link as fallback
       const spotifyLink = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
-      
-      // Add Spotify search reference at the top
       const spotifySearchTrack: Track = {
         id: 'spotify-search',
-        name: `🎵 Search "${query}" on Spotify for full song playback`,
+        name: `🎵 Search "${query}" on Spotify (alternative)`,
         artist: 'Click to open in Spotify',
         source: 'spotify',
         spotifyUrl: spotifyLink,
         externalUrl: spotifyLink,
       };
 
-      return [spotifySearchTrack, ...itunesResults];
+      return [spotifySearchTrack, ...kkboxTracks];
     } catch (error) {
-      console.error('Error searching tracks:', error);
-      return [];
+      console.error('Error searching KKBOX:', error);
+      // Fallback to Spotify search only if KKBOX fails
+      const spotifyLink = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+      return [{
+        id: 'spotify-search',
+        name: `🎵 Search "${query}" on Spotify`,
+        artist: 'KKBOX unavailable, click to search Spotify',
+        source: 'spotify',
+        spotifyUrl: spotifyLink,
+        externalUrl: spotifyLink,
+      }];
     }
   }
 
   /**
-   * Search iTunes
-   */
-  private async searchItunes(query: string, limit: number = 20): Promise<Track[]> {
-    try {
-      const response = await fetch(
-        `${this.itunesUrl}/search?term=${encodeURIComponent(query)}&entity=song&limit=${limit}`
-      );
-
-      const data = await response.json();
-      const results = data.results || [];
-
-      return results.map((track: any) => ({
-        id: track.trackId,
-        name: track.trackName,
-        artist: track.artistName,
-        album: track.collectionName,
-        image: track.artworkUrl100?.replace('100x100', '300x300'),
-        duration: Math.floor((track.trackTimeMillis || 0) / 1000),
-        previewUrl: track.previewUrl || undefined,
-        externalUrl: track.trackViewUrl || '',
-        source: 'itunes' as const,
-      }));
-    } catch (error) {
-      console.error('Error searching iTunes:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get Spotify link for a song - user can play full song there
+   * Get Spotify link for a song
    */
   getSpotifySearchLink(songName: string, artist?: string): string {
     const query = artist ? `${songName} ${artist}` : songName;

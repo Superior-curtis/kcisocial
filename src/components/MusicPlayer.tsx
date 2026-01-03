@@ -37,7 +37,7 @@ const MusicPlayer: React.FC = () => {
 
   const handlePlayPreview = (track: SpotifyTrack) => {
     if (!track.previewUrl) {
-      setError('No preview available for this track');
+      setError('No playback available for this track');
       return;
     }
 
@@ -49,8 +49,13 @@ const MusicPlayer: React.FC = () => {
     setCurrentTrack(track);
     setError(null);
     const audio = new Audio(track.previewUrl);
+    
+    audio.addEventListener('error', () => {
+      setError('Failed to play this track. KKBOX authentication may be required.');
+    });
+    
     audio.play().catch(() => {
-      setError('Failed to play preview');
+      setError('Failed to play this track. Try opening in external player.');
     });
     setPlayingAudio(audio);
   };
@@ -70,6 +75,9 @@ const MusicPlayer: React.FC = () => {
             <Music className="w-7 h-7" />
             Music Player
           </CardTitle>
+          <p className="text-white/80 text-sm mt-1">
+            🎵 Powered by KKBOX - Full song playback available!
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="flex gap-2">
@@ -94,6 +102,9 @@ const MusicPlayer: React.FC = () => {
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="w-4 h-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}          <AlertCircle className="w-4 h-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}

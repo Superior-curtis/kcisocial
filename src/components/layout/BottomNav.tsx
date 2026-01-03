@@ -1,4 +1,4 @@
-import { Home, MessageCircle, Users, Megaphone, User, Shield, Sparkles, Music, Video } from 'lucide-react';
+import { Home, MessageCircle, Users, Megaphone, User, Shield, Sparkles, Video } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +20,6 @@ export function BottomNav() {
   ];
 
   const moreItems = [
-    { to: '/music', icon: Music, label: 'Music' },
     { to: '/videos', icon: Video, label: 'Videos' },
   ];
 

@@ -698,7 +698,10 @@ export default function ClubDetail() {
               {/* Search Form */}
               <form onSubmit={handleSearchMusic} className="space-y-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 p-4 rounded-lg border border-purple-500/20">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Search for songs to share</label>
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    🎵 Search for songs to share
+                    <span className="text-xs text-muted-foreground font-normal">(KKBOX - Full songs!)</span>
+                  </label>
                   <div className="flex gap-2 mt-2">
                     <Input
                       placeholder="Song name, artist..."
@@ -827,8 +830,8 @@ export default function ClubDetail() {
                       </div>
                     ))}
                   </div>
-                  <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-700">
-                    💡 <strong>Tip:</strong> Use the preview button to listen (30 sec), then open on iTunes or search on Spotify for the full song!
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-700">
+                    🎵 <strong>KKBOX Full Songs:</strong> Play complete tracks directly here! External links provided as alternatives.
                   </div>
                 </div>
               )}

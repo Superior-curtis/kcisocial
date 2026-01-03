@@ -593,14 +593,39 @@ export default function Chat() {
               recipientId={otherId}
               onSend={async (audioBlob, duration) => {
                 try {
-                  const file = new File([audioBlob], 'voice-message.m4a', { type: 'audio/mp4' });
+                  // Use the correct MIME type - webm for voice recording
+                  const file = new File([audioBlob], 'voice-message.webm', { 
+                    type: audioBlob.type || 'audio/webm' 
+                  });
+                  
+                  console.log('Uploading voice message:', file.type, file.size, 'bytes');
                   const mediaUrl = await uploadMedia(file);
-                  await sendMessage(user?.id || '', otherId, `Voice message (${Math.round(duration)}s)`, mediaUrl, 'audio');
-                  toast({ description: 'Voice message sent!' });
+                  
+                  if (!mediaUrl) {
+                    throw new Error('Failed to upload voice message');
+                  }
+                  
+                  console.log('Voice message uploaded:', mediaUrl);
+                  await sendMessage(
+                    user?.id || '', 
+                    otherId, 
+                    `🎤 Voice message (${Math.round(duration)}s)`, 
+                    mediaUrl, 
+                    'audio'
+                  );
+                  
+                  toast({ 
+                    title: 'Voice message sent!',
+                    description: `${Math.round(duration)} seconds`,
+                  });
                   setShowVoiceRecorder(false);
                 } catch (error) {
                   console.error('Failed to send voice message:', error);
-                  toast({ description: 'Failed to send voice message', variant: 'destructive' });
+                  toast({ 
+                    title: 'Failed to send voice message', 
+                    description: error instanceof Error ? error.message : 'Unknown error',
+                    variant: 'destructive' 
+                  });
                 }
               }}
             />

@@ -62,15 +62,31 @@ class JitsiService {
       configOverwrite: {
         startWithAudioMuted: false,
         startWithVideoMuted: false,
-        disableH264: true,
+        disableH264: false,
+        enableNoAudioDetection: true,
+        enableNoisyMicDetection: true,
         p2p: {
           enabled: true,
+          stunServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ]
         },
         prejoinPageEnabled: false,
+        requireDisplayName: false,
       },
       interfaceConfigOverwrite: {
         DISABLE_AUDIO_LEVELS: false,
         SHOW_JITSI_WATERMARK: false,
+        SHOW_BRAND_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        TOOLBAR_BUTTONS: [
+          'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+          'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+          'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+          'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
+          'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+        ],
       },
     };
 

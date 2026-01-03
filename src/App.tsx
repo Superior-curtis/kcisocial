@@ -24,7 +24,6 @@ import HelpCenter from "./pages/HelpCenter";
 import AdminPanel from "./pages/AdminPanel";
 import Maintenance from "./pages/Maintenance";
 import NotFound from "./pages/NotFound";
-import Music from "./pages/Music";
 import Videos from "./pages/Videos";
 import { UserRole } from "@/types";
 import { getSystemSettings } from "@/lib/firestore";
@@ -116,7 +115,6 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
             <Route path="/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
             <Route path="/help" element={<ProtectedRoute element={<HelpCenter />} />} />
-            <Route path="/music" element={<ProtectedRoute element={<Music />} />} />
             <Route path="/videos" element={<ProtectedRoute element={<Videos />} />} />
             <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} roles={["admin"]} />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
