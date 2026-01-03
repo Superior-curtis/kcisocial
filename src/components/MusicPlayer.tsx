@@ -76,7 +76,7 @@ const MusicPlayer: React.FC = () => {
             Music Player
           </CardTitle>
           <p className="text-white/80 text-sm mt-1">
-            🎵 Search songs - Preview here, play full songs on Spotify!
+            🎵 Preview here, play full songs on Spotify or KKBOX!
           </p>
         </CardHeader>
         <CardContent>
@@ -193,8 +193,9 @@ const MusicPlayer: React.FC = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-xs font-medium transition"
+                        title="Play on Spotify (full song)"
                       >
-                        <span>Listen</span>
+                        <span>Spotify</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     ) : (
@@ -202,16 +203,28 @@ const MusicPlayer: React.FC = () => {
                         <span className="text-slate-400 text-xs whitespace-nowrap">
                           {track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : ''}
                         </span>
-                        <Button
-                          size="sm"
-                          variant={currentTrack?.id === track.id ? 'default' : 'outline'}
-                          onClick={() => handlePlayPreview(track)}
-                          disabled={!track.previewUrl}
-                          className="rounded-full w-9 h-9 p-0"
-                          title={!track.previewUrl ? 'No preview available' : 'Play 30s preview'}
+                        {track.previewUrl && (
+                          <Button
+                            size="sm"
+                            variant={currentTrack?.id === track.id ? 'default' : 'outline'}
+                            onClick={() => handlePlayPreview(track)}
+                            className="rounded-full w-9 h-9 p-0"
+                            title="Play 30s preview"
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {/* KKBOX Button */}
+                        <a
+                          href={`https://www.kkbox.com/search?q=${encodeURIComponent(track.name + ' ' + (track.artist || ''))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-full text-xs font-medium transition"
+                          title="Play on KKBOX (full song)"
                         >
-                          <Play className="w-4 h-4" />
-                        </Button>
+                          <span>KKBOX</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
                       </>
                     )}
                   </div>

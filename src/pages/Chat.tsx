@@ -449,7 +449,11 @@ export default function Chat() {
               <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[70%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}>
                   {m.mediaUrl && (
-                    m.mediaType?.startsWith('video') ? (
+                    m.mediaType?.startsWith('audio') ? (
+                      <div className="mb-2 bg-black/20 rounded-lg p-2">
+                        <audio src={m.mediaUrl} controls className="w-full h-12" />
+                      </div>
+                    ) : m.mediaType?.startsWith('video') ? (
                       <video src={m.mediaUrl} controls className="rounded-lg mb-2 max-h-64 w-full" />
                     ) : (
                       <img src={m.mediaUrl} alt="message media" className="rounded-lg mb-2 max-h-64 w-full object-cover" loading="lazy" />
