@@ -8,10 +8,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getUserProfile, listenToConversationMessages, sendMessage, uploadMedia, toggleFollow, isFollowing, listenToGroupMessages, sendGroupMessage, markMessageAsRead, leaveGroupChat, deleteGroupChat, getGroupInfo, removeGroupMember } from "@/lib/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
-import { Paperclip, X, Sparkles, UserPlus, UserCheck, LogOut, Trash2, Users, Phone, Mic, ArrowLeft } from "lucide-react";
+import { Paperclip, X, Sparkles, UserPlus, UserCheck, LogOut, Trash2, Users, Phone, Mic, ArrowLeft, Video } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import VideoCall from "@/components/VideoCall";
+import SimpleVoIPCall from "@/components/SimpleVoIPCall";
 import VoiceMessageRecorder from "@/components/VoiceMessageRecorder";
 import AnonymousWall from "@/components/AnonymousWall";
 
@@ -37,6 +37,7 @@ export default function Chat() {
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [membersLoading, setMembersLoading] = useState(false);
   const [showVideoCall, setShowVideoCall] = useState(false);
+  const [callType, setCallType] = useState<'video' | 'voice'>('voice');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   
   // Check if this is a group chat
@@ -503,7 +504,20 @@ export default function Chat() {
             </Button>
             {!isGroupChat && (
               <>
-                <Button variant="ghost" size="icon" onClick={() => setShowVideoCall(true)} title="Start video/voice call">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => { setCallType('video'); setShowVideoCall(true); }} 
+                  title="Start video call"
+                >
+                  <Video className="w-5 h-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => { setCallType('voice'); setShowVideoCall(true); }} 
+                  title="Start voice call"
+                >
                   <Phone className="w-5 h-5" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => setShowVoiceRecorder(true)} title="Send voice message">
@@ -568,22 +582,19 @@ export default function Chat() {
         </DialogContent>
       </Dialog>
 
-      {/* Video Call Dialog */}
+      {/* VoIP Call */}
       {showVideoCall && otherId && (
-        <Dialog open={showVideoCall} onOpenChange={setShowVideoCall}>
-          <DialogContent className="max-w-4xl h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Video Call with {otherUserName}</DialogTitle>
-            </DialogHeader>
-            <VideoCall 
-              recipientId={otherId} 
-              recipientName={otherUserName} 
-              userId={user?.id || ''}
-              userName={user?.displayName || 'User'}
-              callType="video"
-            />
-          </DialogContent>
-        </Dialog>
+        <SimpleVoIPCall
+          userId={user?.id || ''}
+          userName={user?.displayName || 'User'}
+          recipientId={otherId}
+          recipientName={otherUserName}
+          recipientAvatar={otherUserProfile?.photoURL || ''}
+          callType={callType}
+          isIncoming={false}
+          callId=""
+          onEndCall={() => setShowVideoCall(false)}
+        />
       )}
 
       {/* Voice Message Dialog */}

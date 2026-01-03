@@ -1,0 +1,283 @@
+/**
+ * Simple WebRTC VoIP Service
+ * Direct peer-to-peer calls without meeting rooms
+ */
+
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
+
+interface CallOffer {
+  from: string;
+  to: string;
+  offer: RTCSessionDescriptionInit;
+  callType: 'video' | 'voice';
+  timestamp: number;
+}
+
+interface CallAnswer {
+  answer: RTCSessionDescriptionInit;
+}
+
+class SimpleVoIPService {
+  private peerConnection: RTCPeerConnection | null = null;
+  private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
+  private callId: string | null = null;
+  private configuration: RTCConfiguration = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' }
+    ]
+  };
+
+  /**
+   * Start a call (caller side)
+   */
+  async startCall(
+    userId: string, 
+    recipientId: string, 
+    callType: 'video' | 'voice',
+    onRemoteStream: (stream: MediaStream) => void
+  ): Promise<string> {
+    try {
+      // Get local media
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        video: callType === 'video',
+        audio: true
+      });
+
+      // Create peer connection
+      this.peerConnection = new RTCPeerConnection(this.configuration);
+
+      // Add local tracks
+      this.localStream.getTracks().forEach(track => {
+        if (this.peerConnection && this.localStream) {
+          this.peerConnection.addTrack(track, this.localStream);
+        }
+      });
+
+      // Handle remote stream
+      this.peerConnection.ontrack = (event) => {
+        if (!this.remoteStream) {
+          this.remoteStream = new MediaStream();
+        }
+        event.streams[0].getTracks().forEach(track => {
+          this.remoteStream?.addTrack(track);
+        });
+        onRemoteStream(this.remoteStream);
+      };
+
+      // Create offer
+      const offer = await this.peerConnection.createOffer();
+      await this.peerConnection.setLocalDescription(offer);
+
+      // Save offer to Firestore
+      const callDoc = await addDoc(collection(firestore, 'voip_calls'), {
+        from: userId,
+        to: recipientId,
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp
+        },
+        callType,
+        status: 'calling',
+        timestamp: Date.now()
+      });
+
+      this.callId = callDoc.id;
+
+      // Listen for answer
+      onSnapshot(doc(firestore, 'voip_calls', this.callId), async (snapshot) => {
+        const data = snapshot.data();
+        if (data?.answer && this.peerConnection) {
+          const answer = new RTCSessionDescription(data.answer);
+          await this.peerConnection.setRemoteDescription(answer);
+        }
+      });
+
+      // Handle ICE candidates
+      this.peerConnection.onicecandidate = async (event) => {
+        if (event.candidate && this.callId) {
+          await addDoc(collection(firestore, `voip_calls/${this.callId}/ice_candidates`), {
+            candidate: event.candidate.toJSON(),
+            from: userId
+          });
+        }
+      };
+
+      // Listen for remote ICE candidates
+      onSnapshot(
+        query(
+          collection(firestore, `voip_calls/${this.callId}/ice_candidates`),
+          where('from', '==', recipientId)
+        ),
+        (snapshot) => {
+          snapshot.docChanges().forEach(async (change) => {
+            if (change.type === 'added' && this.peerConnection) {
+              const candidate = new RTCIceCandidate(change.doc.data().candidate);
+              await this.peerConnection.addIceCandidate(candidate);
+            }
+          });
+        }
+      );
+
+      return this.callId;
+    } catch (error) {
+      console.error('Failed to start call:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Answer a call (recipient side)
+   */
+  async answerCall(
+    callId: string,
+    userId: string,
+    onRemoteStream: (stream: MediaStream) => void
+  ): Promise<void> {
+    try {
+      this.callId = callId;
+
+      // Get call offer
+      const callDoc = await getDocs(query(collection(firestore, 'voip_calls'), where('__name__', '==', callId)));
+      const callData = callDoc.docs[0]?.data();
+      
+      if (!callData) throw new Error('Call not found');
+
+      // Get local media
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        video: callData.callType === 'video',
+        audio: true
+      });
+
+      // Create peer connection
+      this.peerConnection = new RTCPeerConnection(this.configuration);
+
+      // Add local tracks
+      this.localStream.getTracks().forEach(track => {
+        if (this.peerConnection && this.localStream) {
+          this.peerConnection.addTrack(track, this.localStream);
+        }
+      });
+
+      // Handle remote stream
+      this.peerConnection.ontrack = (event) => {
+        if (!this.remoteStream) {
+          this.remoteStream = new MediaStream();
+        }
+        event.streams[0].getTracks().forEach(track => {
+          this.remoteStream?.addTrack(track);
+        });
+        onRemoteStream(this.remoteStream);
+      };
+
+      // Set remote description (offer)
+      const offer = new RTCSessionDescription(callData.offer);
+      await this.peerConnection.setRemoteDescription(offer);
+
+      // Create answer
+      const answer = await this.peerConnection.createAnswer();
+      await this.peerConnection.setLocalDescription(answer);
+
+      // Save answer
+      await updateDoc(doc(firestore, 'voip_calls', callId), {
+        answer: {
+          type: answer.type,
+          sdp: answer.sdp
+        },
+        status: 'connected'
+      });
+
+      // Handle ICE candidates
+      this.peerConnection.onicecandidate = async (event) => {
+        if (event.candidate) {
+          await addDoc(collection(firestore, `voip_calls/${callId}/ice_candidates`), {
+            candidate: event.candidate.toJSON(),
+            from: userId
+          });
+        }
+      };
+
+      // Listen for remote ICE candidates
+      onSnapshot(
+        query(
+          collection(firestore, `voip_calls/${callId}/ice_candidates`),
+          where('from', '==', callData.from)
+        ),
+        (snapshot) => {
+          snapshot.docChanges().forEach(async (change) => {
+            if (change.type === 'added' && this.peerConnection) {
+              const candidate = new RTCIceCandidate(change.doc.data().candidate);
+              await this.peerConnection.addIceCandidate(candidate);
+            }
+          });
+        }
+      );
+    } catch (error) {
+      console.error('Failed to answer call:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * End the call
+   */
+  async endCall(): Promise<void> {
+    // Stop local tracks
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream = null;
+    }
+
+    // Close peer connection
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+
+    // Clean up Firestore
+    if (this.callId) {
+      try {
+        await deleteDoc(doc(firestore, 'voip_calls', this.callId));
+      } catch (error) {
+        console.error('Failed to cleanup call:', error);
+      }
+      this.callId = null;
+    }
+
+    this.remoteStream = null;
+  }
+
+  /**
+   * Toggle audio mute
+   */
+  setAudioMuted(muted: boolean): void {
+    if (this.localStream) {
+      this.localStream.getAudioTracks().forEach(track => {
+        track.enabled = !muted;
+      });
+    }
+  }
+
+  /**
+   * Toggle video
+   */
+  setVideoEnabled(enabled: boolean): void {
+    if (this.localStream) {
+      this.localStream.getVideoTracks().forEach(track => {
+        track.enabled = enabled;
+      });
+    }
+  }
+
+  /**
+   * Get local stream
+   */
+  getLocalStream(): MediaStream | null {
+    return this.localStream;
+  }
+}
+
+export const simpleVoIPService = new SimpleVoIPService();
