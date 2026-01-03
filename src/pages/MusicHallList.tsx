@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, onSnapshot, orderBy } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 
 interface MusicRoom {
@@ -34,18 +34,61 @@ export default function MusicHallList() {
   const [roomName, setRoomName] = useState('');
   const [roomType, setRoomType] = useState<'public' | 'private'>('public');
   const [creating, setCreating] = useState(false);
-  const [rooms, setRooms] = useState<MusicRoom[]>([
-    {
-      id: 'global-public',
-      name: 'Global Music Hall',
-      type: 'public',
-      creator: 'system',
-      creatorName: 'System',
-      members: [],
-      listeners: 42,
-      createdAt: Date.now()
-    }
-  ]);
+  const [rooms, setRooms] = useState<MusicRoom[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Real-time listener for rooms
+  useEffect(() => {
+    console.log('[MusicHallList] Setting up Firestore listener');
+    
+    const q = query(
+      collection(firestore, 'music_rooms'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('[MusicHallList] Received', snapshot.docs.length, 'rooms');
+      
+      const roomsData: MusicRoom[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || 'Untitled Room',
+          type: data.type || 'public',
+          creator: data.creator || 'unknown',
+          creatorName: data.creatorName || 'Unknown',
+          members: data.members || [],
+          currentTrack: data.currentTrack,
+          listeners: data.listeners || data.members?.length || 0,
+          createdAt: data.createdAt || Date.now()
+        };
+      });
+
+      // Always include the global public room at the top
+      const globalRoom: MusicRoom = {
+        id: 'global-public',
+        name: 'Global Music Hall',
+        type: 'public',
+        creator: 'system',
+        creatorName: 'System',
+        members: [],
+        listeners: roomsData.filter(r => r.type === 'public').reduce((sum, r) => sum + r.listeners, 0) + 1,
+        createdAt: 0
+      };
+
+      setRooms([globalRoom, ...roomsData]);
+      setLoading(false);
+    }, (error) => {
+      console.error('[MusicHallList] Error listening to rooms:', error);
+      toast({ title: 'Failed to load rooms', variant: 'destructive' });
+      setLoading(false);
+    });
+
+    return () => {
+      console.log('[MusicHallList] Cleaning up listener');
+      unsubscribe();
+    };
+  }, []);
 
   const handleCreateRoom = async () => {
     if (!user) {
@@ -113,23 +156,30 @@ export default function MusicHallList() {
           </Button>
         </div>
 
+        {loading && (
+          <div className="text-center py-8 text-muted-foreground">
+            Loading music rooms...
+          </div>
+        )}
+
         {/* Public Rooms */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <Globe className="w-5 h-5 text-primary" />
+            <Globe className="w-5 h-5 text-primary animate-pulse" />
             <h2 className="text-xl font-semibold">Public Rooms</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms
               .filter((room) => room.type === 'public')
-              .map((room) => (
+              .map((room, index) => (
                 <Card
                   key={room.id}
-                  className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                  className="p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in bg-gradient-to-br from-card to-card/50 border-2 hover:border-primary/50"
+                  style={{ animationDelay: `${index * 100}ms` }}
                   onClick={() => navigate(`/music-hall/${room.id}`)}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center flex-shrink-0 animate-pulse shadow-lg">
                       <Music className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -141,7 +191,7 @@ export default function MusicHallList() {
                         </div>
                       </div>
                       {room.currentTrack && (
-                        <div className="text-xs text-muted-foreground truncate">
+                        <div className="text-xs text-muted-foreground truncate bg-primary/10 px-2 py-1 rounded">
                           🎵 {room.currentTrack.name} - {room.currentTrack.artist}
                         </div>
                       )}
@@ -162,14 +212,15 @@ export default function MusicHallList() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {rooms
                 .filter((room) => room.type === 'private' && room.members.includes(user?.id || ''))
-                .map((room) => (
+                .map((room, index) => (
                   <Card
                     key={room.id}
-                    className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                    className="p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in bg-gradient-to-br from-card to-card/50 border-2 hover:border-blue-500/50"
+                    style={{ animationDelay: `${index * 100}ms` }}
                     onClick={() => navigate(`/music-hall/${room.id}`)}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg">
                         <Lock className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -189,10 +240,10 @@ export default function MusicHallList() {
                 ))}
             </div>
           ) : (
-            <Card className="p-8 text-center text-muted-foreground">
-              <Lock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <Card className="p-8 text-center text-muted-foreground hover:shadow-lg transition-shadow">
+              <Lock className="w-12 h-12 mx-auto mb-3 opacity-50 animate-pulse" />
               <p className="mb-4">You don't have any private rooms yet</p>
-              <Button onClick={() => setShowCreateDialog(true)} variant="outline">
+              <Button onClick={() => setShowCreateDialog(true)} variant="outline" className="hover:scale-105 transition-transform">
                 Create Your First Room
               </Button>
             </Card>

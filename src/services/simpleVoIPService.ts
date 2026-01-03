@@ -57,19 +57,37 @@ class SimpleVoIPService {
       // Add local tracks
       this.localStream.getTracks().forEach(track => {
         if (this.peerConnection && this.localStream) {
+          console.log('[VoIP Service] Adding local track:', track.kind);
           this.peerConnection.addTrack(track, this.localStream);
         }
       });
 
       // Handle remote stream
       this.peerConnection.ontrack = (event) => {
-        if (!this.remoteStream) {
-          this.remoteStream = new MediaStream();
+        console.log('[VoIP Service] Received remote track:', event.track.kind);
+        console.log('[VoIP Service] Streams:', event.streams);
+        
+        if (event.streams && event.streams[0]) {
+          console.log('[VoIP Service] Using stream from event');
+          this.remoteStream = event.streams[0];
+          onRemoteStream(this.remoteStream);
+        } else {
+          console.log('[VoIP Service] Creating new stream and adding track');
+          if (!this.remoteStream) {
+            this.remoteStream = new MediaStream();
+          }
+          this.remoteStream.addTrack(event.track);
+          onRemoteStream(this.remoteStream);
         }
-        event.streams[0].getTracks().forEach(track => {
-          this.remoteStream?.addTrack(track);
-        });
-        onRemoteStream(this.remoteStream);
+      };
+
+      // Connection state monitoring
+      this.peerConnection.onconnectionstatechange = () => {
+        console.log('[VoIP Service] Connection state:', this.peerConnection?.connectionState);
+      };
+
+      this.peerConnection.oniceconnectionstatechange = () => {
+        console.log('[VoIP Service] ICE connection state:', this.peerConnection?.iceConnectionState);
       };
 
       // Create offer
@@ -173,19 +191,37 @@ class SimpleVoIPService {
       // Add local tracks
       this.localStream.getTracks().forEach(track => {
         if (this.peerConnection && this.localStream) {
+          console.log('[VoIP Service] Adding local track for answer:', track.kind);
           this.peerConnection.addTrack(track, this.localStream);
         }
       });
 
       // Handle remote stream
       this.peerConnection.ontrack = (event) => {
-        if (!this.remoteStream) {
-          this.remoteStream = new MediaStream();
+        console.log('[VoIP Service] Received remote track (answer):', event.track.kind);
+        console.log('[VoIP Service] Streams (answer):', event.streams);
+        
+        if (event.streams && event.streams[0]) {
+          console.log('[VoIP Service] Using stream from event (answer)');
+          this.remoteStream = event.streams[0];
+          onRemoteStream(this.remoteStream);
+        } else {
+          console.log('[VoIP Service] Creating new stream and adding track (answer)');
+          if (!this.remoteStream) {
+            this.remoteStream = new MediaStream();
+          }
+          this.remoteStream.addTrack(event.track);
+          onRemoteStream(this.remoteStream);
         }
-        event.streams[0].getTracks().forEach(track => {
-          this.remoteStream?.addTrack(track);
-        });
-        onRemoteStream(this.remoteStream);
+      };
+
+      // Connection state monitoring
+      this.peerConnection.onconnectionstatechange = () => {
+        console.log('[VoIP Service] Connection state (answer):', this.peerConnection?.connectionState);
+      };
+
+      this.peerConnection.oniceconnectionstatechange = () => {
+        console.log('[VoIP Service] ICE connection state (answer):', this.peerConnection?.iceConnectionState);
       };
 
       // Set remote description (offer)
