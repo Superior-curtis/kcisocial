@@ -35,19 +35,24 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
   const [isVideoOn, setIsVideoOn] = useState(callType === 'video');
   const [duration, setDuration] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
-  const [isAnswered, setIsAnswered] = useState(!isIncoming);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [callStarted, setCallStarted] = useState(false);
 
   useEffect(() => {
     const initCall = async () => {
       try {
+        console.log('[VoIP] Initializing call, isIncoming:', isIncoming, 'callId:', callId);
+        
         if (isIncoming && callId) {
           // Answer incoming call
           console.log('[VoIP] Answering incoming call:', callId);
           await simpleVoIPService.answerCall(callId, userId, (remoteStream) => {
-            console.log('[VoIP] Received remote stream');
+            console.log('[VoIP] Received remote stream, tracks:', remoteStream.getTracks().length);
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = remoteStream;
+              console.log('[VoIP] Set remote video srcObject');
+              // Force play
+              remoteVideoRef.current.play().catch(e => console.error('[VoIP] Remote play error:', e));
             }
             setIsConnected(true);
           });
@@ -55,9 +60,12 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
           // Start outgoing call
           console.log('[VoIP] Starting outgoing call to:', recipientId);
           const newCallId = await simpleVoIPService.startCall(userId, recipientId, callType, (remoteStream) => {
-            console.log('[VoIP] Received remote stream');
+            console.log('[VoIP] Received remote stream, tracks:', remoteStream.getTracks().length);
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = remoteStream;
+              console.log('[VoIP] Set remote video srcObject');
+              // Force play
+              remoteVideoRef.current.play().catch(e => console.error('[VoIP] Remote play error:', e));
             }
             setIsConnected(true);
           });
@@ -66,11 +74,16 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
 
         // Set local stream
         const localStream = simpleVoIPService.getLocalStream();
+        console.log('[VoIP] Local stream:', localStream, 'tracks:', localStream?.getTracks().length);
         if (localStream && localVideoRef.current) {
           localVideoRef.current.srcObject = localStream;
+          localVideoRef.current.muted = true; // Prevent echo
+          console.log('[VoIP] Set local video srcObject');
+          // Force play
+          localVideoRef.current.play().catch(e => console.error('[VoIP] Local play error:', e));
         }
 
-        setIsAnswered(true);
+        setCallStarted(true);
       } catch (error) {
         console.error('[VoIP] Call failed:', error);
         onEndCall();
@@ -80,15 +93,36 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
     // Run initialization only once when component mounts
     initCall();
 
-    // Timer
+    // Timer - starts immediately after call is initiated
     const interval = setInterval(() => {
-      if (isAnswered) {
+      if (callStarted) {
         setDuration(prev => prev + 1);
       }
     }, 1000);
+    
+    // Monitor for call termination from Firestore
+    let unsubscribeCall: (() => void) | undefined;
+    
+    const setupCallMonitor = async () => {
+      if (callId) {
+        const { onSnapshot, doc } = await import('firebase/firestore');
+        const { firestore } = await import('@/lib/firebase');
+        
+        unsubscribeCall = onSnapshot(doc(firestore, 'voip_calls', callId), (snapshot) => {
+          const data = snapshot.data();
+          if (data?.status === 'ended' || data?.status === 'declined') {
+            console.log('[VoIP] Call ended by other party, closing...');
+            onEndCall();
+          }
+        });
+      }
+    };
+    
+    setupCallMonitor();
 
     return () => {
       clearInterval(interval);
+      if (unsubscribeCall) unsubscribeCall();
     };
   }, []); // Run only once on mount
 
@@ -147,11 +181,11 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
               </Avatar>
               <h2 className="text-white text-3xl font-bold mb-2">{recipientName}</h2>
               <p className="text-white/60 text-lg">
-                {!isAnswered ? (isIncoming ? 'Incoming call...' : 'Calling...') : 
+                {!callStarted ? (isIncoming ? 'Incoming call...' : 'Calling...') : 
                  !isConnected ? 'Connecting...' : 
                  callType === 'voice' ? '🎤 Voice Call' : '📹 Video Call'}
               </p>
-              {isAnswered && (
+              {callStarted && (
                 <p className="text-white/80 text-2xl font-mono mt-4">{formatDuration(duration)}</p>
               )}
             </div>
@@ -175,7 +209,7 @@ const SimpleVoIPCall: React.FC<SimpleVoIPCallProps> = ({
         )}
 
         {/* Call Status Bar */}
-        {isAnswered && (
+        {callStarted && (
           <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full text-white">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />

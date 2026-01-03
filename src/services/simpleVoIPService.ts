@@ -119,6 +119,15 @@ class SimpleVoIPService {
           const answer = new RTCSessionDescription(data.answer);
           await this.peerConnection.setRemoteDescription(answer);
         }
+        
+        // Check if call was ended by other party
+        if (data?.status === 'ended' || data?.status === 'declined') {
+          console.log('[VoIP Service] Call ended by other party');
+          // Will trigger cleanup in component
+          if (this.peerConnection) {
+            this.peerConnection.close();
+          }
+        }
       });
 
       // Handle ICE candidates
@@ -269,6 +278,17 @@ class SimpleVoIPService {
           });
         }
       );
+      
+      // Listen for call status changes (e.g., ended by caller)
+      onSnapshot(doc(firestore, 'voip_calls', callId), (snapshot) => {
+        const data = snapshot.data();
+        if (data?.status === 'ended' || data?.status === 'declined') {
+          console.log('[VoIP Service] Call ended by other party (answer)');
+          if (this.peerConnection) {
+            this.peerConnection.close();
+          }
+        }
+      });
     } catch (error) {
       console.error('Failed to answer call:', error);
       throw error;
@@ -279,9 +299,27 @@ class SimpleVoIPService {
    * End the call
    */
   async endCall(): Promise<void> {
+    console.log('[VoIP Service] Ending call:', this.callId);
+    
+    // Update Firestore to mark call as ended
+    if (this.callId) {
+      try {
+        await updateDoc(doc(firestore, 'voip_calls', this.callId), {
+          status: 'ended',
+          endedAt: Date.now()
+        });
+        console.log('[VoIP Service] Marked call as ended in Firestore');
+      } catch (error) {
+        console.error('Failed to update call status:', error);
+      }
+    }
+    
     // Stop local tracks
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach(track => {
+        console.log('[VoIP Service] Stopping local track:', track.kind);
+        track.stop();
+      });
       this.localStream = null;
     }
 
