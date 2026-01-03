@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import SimpleVoIPCall from "@/components/SimpleVoIPCall";
 import VoiceMessageRecorder from "@/components/VoiceMessageRecorder";
 import AnonymousWall from "@/components/AnonymousWall";
+import { voipNotificationService, type IncomingCall } from "@/services/voipNotificationService";
 
 export default function Chat() {
   const { uid: otherId } = useParams<{ uid: string }>();
@@ -39,6 +40,8 @@ export default function Chat() {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [callType, setCallType] = useState<'video' | 'voice'>('voice');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+  const [currentCallId, setCurrentCallId] = useState<string>('');
   
   // Check if this is a group chat
   const queryParams = new URLSearchParams(location.search);
@@ -137,6 +140,40 @@ export default function Chat() {
     } finally {
       setFollowingLoading(false);
     }
+  };
+
+  // VoIP incoming call listener
+  useEffect(() => {
+    if (!user) return;
+
+    // Request notification permission
+    voipNotificationService.requestPermission();
+
+    // Start listening for incoming calls
+    voipNotificationService.startListening(user.id, (call) => {
+      setIncomingCall(call);
+      setCurrentCallId(call.callId);
+    });
+
+    return () => {
+      voipNotificationService.stopListening();
+    };
+  }, [user?.id]);
+
+  // Handle incoming call answer
+  const handleAnswerCall = () => {
+    if (!incomingCall) return;
+    setShowVideoCall(true);
+    setCallType(incomingCall.callType);
+    setIncomingCall(null);
+  };
+
+  // Handle incoming call decline
+  const handleDeclineCall = async () => {
+    if (!incomingCall) return;
+    await voipNotificationService.declineCall(incomingCall.callId);
+    setIncomingCall(null);
+    setCurrentCallId('');
   };
 
   const handleLeaveGroup = async () => {
@@ -582,18 +619,67 @@ export default function Chat() {
         </DialogContent>
       </Dialog>
 
+      {/* Incoming Call Dialog */}
+      {incomingCall && (
+        <Dialog open={true} onOpenChange={() => handleDeclineCall()}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-center">
+                {incomingCall.callType === 'video' ? '📹' : '📞'} Incoming Call
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-6">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={incomingCall.fromAvatar} />
+                <AvatarFallback className="text-2xl">
+                  {incomingCall.fromName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-center">
+                <p className="text-xl font-semibold">{incomingCall.fromName}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {incomingCall.callType === 'video' ? 'Video' : 'Voice'} Call
+                </p>
+              </div>
+              <div className="flex gap-4 mt-4">
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  onClick={handleDeclineCall}
+                  className="rounded-full w-16 h-16"
+                >
+                  <X className="w-8 h-8" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={handleAnswerCall}
+                  className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600"
+                >
+                  <Phone className="w-8 h-8" />
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* VoIP Call */}
       {showVideoCall && otherId && (
         <SimpleVoIPCall
           userId={user?.id || ''}
           userName={user?.displayName || 'User'}
-          recipientId={otherId}
-          recipientName={otherUserName}
-          recipientAvatar={otherUserProfile?.photoURL || ''}
+          recipientId={incomingCall ? incomingCall.from : otherId}
+          recipientName={incomingCall ? incomingCall.fromName : otherUserName}
+          recipientAvatar={incomingCall ? incomingCall.fromAvatar : (otherUserProfile?.photoURL || '')}
           callType={callType}
-          isIncoming={false}
-          callId=""
-          onEndCall={() => setShowVideoCall(false)}
+          isIncoming={!!incomingCall}
+          callId={currentCallId}
+          onEndCall={() => {
+            setShowVideoCall(false);
+            setIncomingCall(null);
+            setCurrentCallId('');
+          }}
         />
       )}
 

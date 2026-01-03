@@ -495,17 +495,28 @@ export default function ClubDetail() {
             <p className="text-muted-foreground mt-2">{club.description}</p>
           </div>
 
-          {/* Stats */}
-          <div className="flex items-center gap-6 mt-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Users className="w-4 h-4" />
-              <span className="text-sm">{club.members?.length || 0} members</span>
+          {/* Stats & Actions */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">{club.members?.length || 0} members</span>
+              </div>
+              {!club.isApproved && (
+                <span className="text-xs bg-warning/10 text-warning px-2 py-1 rounded-full border border-warning/20">
+                  Pending Approval
+                </span>
+              )}
             </div>
-            {!club.isApproved && (
-              <span className="text-xs bg-warning/10 text-warning px-2 py-1 rounded-full border border-warning/20">
-                Pending Approval
-              </span>
-            )}
+            
+            {/* Music Hall Button */}
+            <Button
+              onClick={() => navigate(`/clubs/${clubId}/music`)}
+              className="gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              <Music className="w-4 h-4" />
+              🎵 Music Hall
+            </Button>
           </div>
 
           {/* Action Button */}
@@ -544,10 +555,6 @@ export default function ClubDetail() {
             <TabsTrigger value="chat" className="gap-2">
               <MessageSquare className="w-4 h-4" />
               Chat
-            </TabsTrigger>
-            <TabsTrigger value="music" className="gap-2">
-              <Music className="w-4 h-4" />
-              Music Room
             </TabsTrigger>
             <TabsTrigger value="members" className="gap-2">
               <Users className="w-4 h-4" />
@@ -691,11 +698,6 @@ export default function ClubDetail() {
                 )}
               </div>
             </div>
-          </TabsContent>
-
-          {/* Music Sharing Room Tab */}
-          <TabsContent value="music" className="mt-0">
-            <MusicRoom clubId={clubId || ''} clubName={club?.name || 'Club'} />
           </TabsContent>
 
           <TabsContent value="members" className="mt-0">
