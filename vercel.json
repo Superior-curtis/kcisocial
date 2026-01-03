@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "functions": {
+    "api/*.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "env": {
+    "KKBOX_CLIENT_ID": "58dff52bea1298c549b6a9a44fd91610",
+    "KKBOX_CLIENT_SECRET": "ac1271e37d61676b67722d29e671039a"
+  }
+}
