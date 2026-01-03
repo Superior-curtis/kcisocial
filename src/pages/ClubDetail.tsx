@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Users, Info, Grid3X3, ArrowLeft, Heart, MessageCircle, Image as ImageIcon, MessageSquare, Send, Paperclip, Plus, Trash2, Crown, X, UserPlus, Music, Play, Search, ExternalLink } from 'lucide-react';
+import { Users, Info, Grid3X3, ArrowLeft, Heart, MessageCircle, Image as ImageIcon, MessageSquare, Send, Paperclip, Plus, Trash2, Crown, X, UserPlus, Play, Search, ExternalLink } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { getClubPosts, listenToClubMessages, createClubMessage, publishClubPost, uploadMedia, getClubMembers, kickMember, promoteMember, getUserProfile, inviteToClub, type UserRecord } from '@/lib/firestore';
@@ -18,7 +18,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import musicService from '@/services/kkboxService';
 
 interface Club {
   id: string;
@@ -544,10 +543,6 @@ export default function ClubDetail() {
               <MessageSquare className="w-4 h-4" />
               Chat
             </TabsTrigger>
-            <TabsTrigger value="music" className="gap-2">
-              <Music className="w-4 h-4" />
-              Music
-            </TabsTrigger>
             <TabsTrigger value="members" className="gap-2">
               <Users className="w-4 h-4" />
               Members
@@ -689,160 +684,6 @@ export default function ClubDetail() {
                   </>
                 )}
               </div>
-            </div>
-          </TabsContent>
-
-          {/* Music Sharing */}
-          <TabsContent value="music" className="mt-0 p-4">
-            <div className="space-y-4">
-              {/* Search Form */}
-              <form onSubmit={handleSearchMusic} className="space-y-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 p-4 rounded-lg border border-purple-500/20">
-                <div>
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    🎵 Search for songs to share
-                    <span className="text-xs text-muted-foreground font-normal">(KKBOX - Full songs!)</span>
-                  </label>
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      placeholder="Song name, artist..."
-                      value={musicSearchQuery}
-                      onChange={(e) => setMusicSearchQuery(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button type="submit" disabled={musicSearching} className="gap-2">
-                      <Search className="w-4 h-4" />
-                      {musicSearching ? 'Searching...' : 'Search'}
-                    </Button>
-                  </div>
-                </div>
-              </form>
-
-              {/* Search Results */}
-              {musicSearchResults.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Search Results ({musicSearchResults.length})</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {musicSearchResults.map((track) => (
-                      <div key={track.id} className={`flex items-center gap-3 p-3 rounded-lg transition ${
-                        track.source === 'spotify' ? 'bg-green-900/20 border border-green-500/20' : 'bg-accent hover:bg-accent/80'
-                      }`}>
-                        {track.id === 'spotify-search' ? (
-                          <div className="w-12 h-12 rounded bg-green-600 flex items-center justify-center text-xl flex-shrink-0">🎵</div>
-                        ) : track.image ? (
-                          <img src={track.image} alt={track.name} className="w-12 h-12 rounded flex-shrink-0" />
-                        ) : null}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{track.name}</p>
-                          {track.artist && (
-                            <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
-                          )}
-                        </div>
-                        {track.source === 'spotify' ? (
-                          <a
-                            href={track.spotifyUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition flex-shrink-0"
-                          >
-                            <Music className="w-3 h-3" />
-                            Play
-                          </a>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleShareTrack(track)}
-                            className="gap-1 flex-shrink-0"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Add
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Shared Tracks */}
-              {sharedTracks.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm text-muted-foreground uppercase">Shared Playlist ({sharedTracks.length})</h3>
-                    <p className="text-xs text-muted-foreground">Tap to preview or visit Spotify for full songs</p>
-                  </div>
-                  <div className="space-y-2">
-                    {sharedTracks.map((track, idx) => (
-                      <div key={track.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-lg border border-purple-500/20 hover:border-purple-500/40 transition">
-                        <div className="flex-shrink-0 w-10 h-10 rounded bg-primary/20 flex items-center justify-center font-semibold text-sm">
-                          {idx + 1}
-                        </div>
-                        {track.image && (
-                          <img src={track.image} alt={track.name} className="w-14 h-14 rounded shadow flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{track.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
-                          {track.album && (
-                            <p className="text-xs text-muted-foreground truncate opacity-70">{track.album}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {track.previewUrl && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                const audio = new Audio(track.previewUrl);
-                                audio.play().catch(() => {
-                                  toast({ title: 'Preview not available', variant: 'destructive' });
-                                });
-                              }}
-                              className="gap-1"
-                              title="Play 30s preview"
-                            >
-                              <Play className="w-4 h-4" />
-                              <span className="hidden sm:inline">Preview</span>
-                            </Button>
-                          )}
-                          {track.externalUrl && (
-                            <a
-                              href={track.externalUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
-                              title="Open in iTunes"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              <span className="hidden sm:inline">Open</span>
-                            </a>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleRemoveSharedTrack(track.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Remove from playlist"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-700">
-                    🎵 <strong>KKBOX Full Songs:</strong> Play complete tracks directly here! External links provided as alternatives.
-                  </div>
-                </div>
-              )}
-
-              {musicSearchResults.length === 0 && sharedTracks.length === 0 && !musicSearchQuery && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Music className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p className="font-medium">No songs shared yet</p>
-                  <p className="text-sm mt-1">Search above to share your favorite songs with the club!</p>
-                </div>
-              )}
             </div>
           </TabsContent>
 

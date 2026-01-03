@@ -76,7 +76,7 @@ const MusicPlayer: React.FC = () => {
             Music Player
           </CardTitle>
           <p className="text-white/80 text-sm mt-1">
-            🎵 Powered by KKBOX - Full song playback available!
+            🎵 Search songs - Preview here, play full songs on Spotify!
           </p>
         </CardHeader>
         <CardContent>
@@ -102,9 +102,6 @@ const MusicPlayer: React.FC = () => {
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="w-4 h-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}          <AlertCircle className="w-4 h-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}

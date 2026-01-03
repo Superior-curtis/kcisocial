@@ -606,13 +606,13 @@ export default function Chat() {
                   }
                   
                   console.log('Voice message uploaded:', mediaUrl);
-                  await sendMessage(
-                    user?.id || '', 
-                    otherId, 
-                    `🎤 Voice message (${Math.round(duration)}s)`, 
+                  await sendMessage({
+                    senderId: user?.id || '', 
+                    receiverId: otherId, 
+                    content: `🎤 Voice message (${Math.round(duration)}s)`, 
                     mediaUrl, 
-                    'audio'
-                  );
+                    mediaType: 'audio'
+                  });
                   
                   toast({ 
                     title: 'Voice message sent!',

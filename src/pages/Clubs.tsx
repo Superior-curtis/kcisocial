@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClub, approveClub, joinClub, leaveClub, uploadMedia, deleteClub, updateClub } from '@/lib/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import MusicPlayer from '@/components/MusicPlayer';
 
 export default function Clubs() {
   const { clubs, isLoading } = useClubs();
@@ -207,6 +208,13 @@ export default function Clubs() {
   return (
     <AppLayout title="Clubs">
       <div className="p-4">
+        {/* Music Section - Outside of clubs */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-4">🎵 Music Player</h2>
+          <MusicPlayer />
+        </div>
+
+        {/* Clubs Section */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Campus Clubs</h2>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>

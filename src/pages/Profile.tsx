@@ -151,7 +151,8 @@ export default function Profile() {
   };
 
   // Debug: Log profile background value
-  console.log('Profile - user.profileBackground:', user?.profileBackground);
+  // Debug log - show only first 50 chars of background to avoid console spam
+  console.log('Profile - user.profileBackground:', user?.profileBackground?.substring(0, 50) + '...');
 
   return (
     <AppLayout title={user.username} showSearch={false} showCreate={false} noBackground={true} disableTheme={true}>
