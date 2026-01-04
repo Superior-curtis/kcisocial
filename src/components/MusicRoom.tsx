@@ -461,24 +461,24 @@ const MusicRoom: React.FC<MusicRoomProps> = ({ clubId, clubName }) => {
   const repeatIcon = roomState?.repeatMode === 'one' ? <Repeat1 /> : roomState?.repeatMode === 'all' ? <Repeat /> : null;
 
   return (
-    <div className="w-full h-screen flex flex-col bg-gradient-to-br from-slate-900 to-black text-white p-4 gap-4 overflow-hidden">
+    <div className="w-full min-h-0 flex flex-col bg-gradient-to-br from-slate-900 to-black text-white p-4 gap-4 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold">{clubName}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{clubName}</h1>
           <p className="text-gray-400 mt-1 text-sm">{listeners.length} listening • {roomState?.queue?.length || 0} in queue</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           {canEditPermissions && (
-            <div className="flex items-center gap-4 text-xs text-gray-300">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-gray-300">
+              <div className="flex items-center justify-between gap-2">
                 <span className="whitespace-nowrap">Everyone can control music</span>
                 <Switch
                   checked={(roomState?.controlMusic ?? 'owner') === 'all'}
                   onCheckedChange={handleToggleControlMusic}
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <span className="whitespace-nowrap">Everyone can control queue</span>
                 <Switch
                   checked={(roomState?.controlQueue ?? 'owner') === 'all'}
@@ -503,7 +503,7 @@ const MusicRoom: React.FC<MusicRoomProps> = ({ clubId, clubName }) => {
       {showSearch && canControlQueue && (
         <Card className="bg-slate-800/80 backdrop-blur border-slate-700 flex-shrink-0">
           <CardContent className="pt-4 space-y-3">
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
               <Input
                 placeholder="Search YouTube songs..."
                 value={searchQuery}
@@ -536,17 +536,17 @@ const MusicRoom: React.FC<MusicRoomProps> = ({ clubId, clubName }) => {
       )}
 
       {/* Main Content: 2 columns */}
-      <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-hidden min-h-0">
         
         {/* Left (2/3): Player + Control */}
-        <div className="col-span-2 flex flex-col gap-4 overflow-hidden">
+        <div className="lg:col-span-2 flex flex-col gap-4 overflow-hidden min-h-0">
           {/* Current Track - Large */}
           <Card className="bg-slate-800/50 backdrop-blur border-slate-700 flex-1 flex flex-col overflow-hidden">
             <CardContent className="flex-1 flex flex-col items-center justify-center p-4">
               {currentTrack ? (
                 <div className="w-full flex flex-col items-center gap-4">
                   {/* Album Art */}
-                  <div className="w-64 h-64 rounded-xl overflow-hidden shadow-2xl flex-shrink-0">
+                  <div className="w-40 h-40 sm:w-56 sm:h-56 lg:w-64 lg:h-64 rounded-xl overflow-hidden shadow-2xl flex-shrink-0">
                     <img 
                       src={currentTrack.image || 'https://via.placeholder.com/300'} 
                       alt={currentTrack.name}
@@ -556,8 +556,8 @@ const MusicRoom: React.FC<MusicRoomProps> = ({ clubId, clubName }) => {
 
                   {/* Track Info */}
                   <div className="text-center w-full">
-                    <h2 className="text-2xl font-bold mb-1 line-clamp-2">{currentTrack.name}</h2>
-                    <p className="text-lg text-gray-400 line-clamp-1">{currentTrack.artist || 'Unknown'}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold mb-1 line-clamp-2">{currentTrack.name}</h2>
+                    <p className="text-base sm:text-lg text-gray-400 line-clamp-1">{currentTrack.artist || 'Unknown'}</p>
                   </div>
 
                   {/* Controls */}
@@ -574,7 +574,7 @@ const MusicRoom: React.FC<MusicRoomProps> = ({ clubId, clubName }) => {
                         </Button>
                         <Button 
                           onClick={handlePlayPause}
-                          className="bg-green-600 hover:bg-green-700 h-14 w-28 text-lg"
+                          className="bg-green-600 hover:bg-green-700 h-12 sm:h-14 w-24 sm:w-28 text-lg"
                           title={roomState?.isPlaying ? 'Pause' : 'Play'}
                         >
                           {roomState?.isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
@@ -672,7 +672,7 @@ const MusicRoom: React.FC<MusicRoomProps> = ({ clubId, clubName }) => {
         </div>
 
         {/* Right (1/3): Listeners + Queue */}
-        <div className="col-span-1 flex flex-col gap-4 overflow-hidden min-h-0">
+        <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden min-h-0">
           
           {/* Listeners */}
           <Card className="bg-slate-800/50 backdrop-blur border-slate-700 flex-1 flex flex-col overflow-hidden min-h-0">
