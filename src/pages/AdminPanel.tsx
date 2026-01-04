@@ -334,9 +334,9 @@ export default function AdminPanel() {
 
   return (
     <AppLayout title="Admin Panel" showSearch={false} showCreate={false}>
-      <div className="max-w-7xl mx-auto p-6 animate-fade-in">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 pb-24 animate-fade-in">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
             <Shield className="w-6 h-6 text-destructive" />
           </div>
@@ -402,7 +402,7 @@ export default function AdminPanel() {
           <CardContent>
             {isImpersonating ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div>
                     <p className="text-sm font-medium">Currently impersonating:</p>
                     <p className="text-lg font-bold text-blue-600">
@@ -411,6 +411,7 @@ export default function AdminPanel() {
                   </div>
                   <Button
                     variant="destructive"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       stopImpersonation();
                       toast({ title: 'Impersonation ended', description: 'Back to your admin account' });
@@ -425,7 +426,7 @@ export default function AdminPanel() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Select
                     value={selectedUserId || ''}
                     onValueChange={setSelectedUserId}
@@ -442,6 +443,7 @@ export default function AdminPanel() {
                     </SelectContent>
                   </Select>
                   <Button
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       if (selectedUserId) {
                         const selectedUser = users.find(u => u.id === selectedUserId);
