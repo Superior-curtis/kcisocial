@@ -39,7 +39,7 @@ export default function AIChat() {
       {
         id: '0',
         role: 'assistant',
-        content: 'Hi! I\'m your KCIS AI assistant powered by GPT-4. I can help with homework, math problems, science questions, language learning, study tips, and more. How can I help you today?',
+        content: 'Hi! I\'m your KCIS AI assistant. I can help with homework, math problems, science questions, language learning, study tips, and more.\n\n💡 Tip: Try asking me anything to get started! (Note: AI service requires API key configuration)',
         timestamp: new Date(),
       },
     ];
@@ -99,12 +99,18 @@ export default function AIChat() {
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('AI response error:', error);
+    } catch (error: any) {
+      console.error('Failed to get AI response:', error);
+      let errorContent = 'Sorry, I encountered an error. Please try again.';
+      
+      if (error?.message === 'AI_NOT_CONFIGURED') {
+        errorContent = `❌ AI 服務尚未配置\n\nThis feature requires an AI API key. Please contact the administrator to enable AI chat.\n\n💡 Free option: Get a Google Gemini API key at:\nhttps://makersuite.google.com/app/apikey\n\nThen add to .env file:\nVITE_GEMINI_API_KEY=your_key_here`;
+      }
+      
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorContent,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -118,7 +124,7 @@ export default function AIChat() {
       const welcomeMsg: ChatMessage = {
         id: '0',
         role: 'assistant',
-        content: 'Hi! I\'m your KCIS AI assistant powered by GPT-4. I can help with homework, math problems, science questions, language learning, study tips, and more. How can I help you today?',
+        content: 'Hi! I\'m your KCIS AI assistant. I can help with homework, math problems, science questions, language learning, study tips, and more.\n\n💡 Tip: Try asking me anything to get started! (Note: AI service requires API key configuration)',
         timestamp: new Date(),
       };
       setMessages([welcomeMsg]);

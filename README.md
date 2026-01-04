@@ -240,12 +240,20 @@ Listener heartbeat / 清理機制（避免 Firestore 壓力與殭屍 listener）
 
 使用 `.env.example` 當模板，複製成 `.env`：
 
+**必要（Firebase）：**
 - `VITE_FIREBASE_API_KEY`
 - `VITE_FIREBASE_AUTH_DOMAIN`
 - `VITE_FIREBASE_PROJECT_ID`
 - `VITE_FIREBASE_STORAGE_BUCKET`
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
+
+**選擇性（AI Chat 功能）：**
+- `VITE_GEMINI_API_KEY` - Google Gemini API（推薦：有免費額度）
+  - 取得免費 API key：https://makersuite.google.com/app/apikey
+- `VITE_OPENAI_API_KEY` - OpenAI API（付費，較昂貴但品質好）
+
+> 💡 AI Chat 會優先使用 Gemini（免費），如果沒設 API key 會顯示友善錯誤訊息告知用戶需要配置。
 
 注意：
 - `.env` 已被 git ignore，避免把本機設定推上 GitHub。
