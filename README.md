@@ -1,6 +1,10 @@
-# KCIS Social
+# Campus Media (Test)
 
-A modern social media platform built specifically for KCIS (Kang Chiao International School) students and staff. Connect, share, and engage with your school community.
+Student-built community app for testing.
+
+**New site (active):** https://campusmedia-01.web.app
+
+**Old site:** https://kcismedia-3ad38.web.app (maintenance page with a button linking to the new site)
 
 ![KCIS Social](https://img.shields.io/badge/React-18.3-blue)
 ![Firebase](https://img.shields.io/badge/Firebase-11.0-orange)
@@ -10,7 +14,7 @@ A modern social media platform built specifically for KCIS (Kang Chiao Internati
 ## 🌟 Features
 
 ### Core Features
-- **🔐 Authentication**: Secure login with school email (@kcis.com.tw) via Google OAuth
+- **🔐 Authentication**: Secure login via Google OAuth
 - **📝 Posts**: Create, edit, and delete posts with text, images, videos, and GIFs
 - **💬 Real-time Chat**: Private messaging and group conversations with AI assistant support
 - **👥 Social Interactions**: Like, comment, save posts, follow users
@@ -194,10 +198,15 @@ kcis-connect-main/
 
 ## 🔒 Security
 
-- **School Email Restriction**: Only @kcis.com.tw emails can access the platform
+- **Testing disclaimer**: This is for testing; not an official school website
 - **Firestore Security Rules**: Strict rules to protect user data
 - **Content Moderation**: AI-powered detection of inappropriate content
 - **Authentication**: Secure Google OAuth via Firebase
+
+## 🛠️ Deploy notes
+
+- **Deploy new site (campusmedia-01):** `firebase deploy --only hosting --project campusmedia-01`
+- **Deploy old site maintenance page (kcismedia-3ad38):** `firebase deploy --only hosting --project kcismedia-3ad38 --config firebase.old.json`
 
 ## 🎯 Key Features Explained
 

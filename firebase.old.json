@@ -1,0 +1,17 @@
+{
+  "hosting": {
+    "public": "maintenance-dist",
+    "ignore": [
+      "firebase.json",
+      "firebase.old.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

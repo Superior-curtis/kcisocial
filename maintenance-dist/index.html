@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maintenance | Campus Media</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+          "Segoe UI Emoji";
+        background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.7)), url("/roadimg.png");
+        background-size: cover;
+        background-position: center;
+      }
+      .card {
+        width: min(720px, calc(100vw - 32px));
+        background: rgba(15, 15, 15, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 16px;
+        padding: 28px;
+        backdrop-filter: blur(12px);
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 28px;
+        line-height: 1.2;
+        letter-spacing: 0.2px;
+      }
+      p {
+        margin: 10px 0;
+        color: rgba(255, 255, 255, 0.82);
+        line-height: 1.6;
+      }
+      .muted {
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 13px;
+      }
+      .actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+      }
+      a.button.primary {
+        background: rgba(59, 130, 246, 0.75);
+        border-color: rgba(59, 130, 246, 0.8);
+      }
+      a.button:hover {
+        filter: brightness(1.07);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>舊網站維護中 / Maintenance</h1>
+      <p>此舊站（kcismedia-3ad38）已停止登入功能，並暫時設為維護頁。</p>
+      <p>請改用新站繼續使用 Campus Media：</p>
+      <div class="actions">
+        <a class="button primary" href="https://campusmedia-01.web.app">前往新網站</a>
+        <a class="button" href="https://campusmedia-01.web.app/auth">前往新站登入頁</a>
+      </div>
+      <p class="muted">僅供測試用途，並非學校官方網站。</p>
+    </main>
+  </body>
+</html>
