@@ -46,7 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        if (!isSchoolEmail(authUser.email)) {
+        const requireSchoolEmail = String(import.meta.env.VITE_REQUIRE_SCHOOL_EMAIL || '').toLowerCase() === 'true';
+        if (requireSchoolEmail && !isSchoolEmail(authUser.email)) {
           await signOut(auth);
           toast({
             title: "Access denied",
@@ -123,7 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const result = await signInWithPopup(auth, googleProvider);
         const authUser = result.user;
-        if (!isSchoolEmail(authUser.email)) {
+        const requireSchoolEmail = String(import.meta.env.VITE_REQUIRE_SCHOOL_EMAIL || '').toLowerCase() === 'true';
+        if (requireSchoolEmail && !isSchoolEmail(authUser.email)) {
           await signOut(auth);
           throw new Error("Only @kcis.com.tw accounts are allowed.");
         }
