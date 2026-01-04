@@ -72,7 +72,7 @@ export default function Auth() {
     <div 
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
       style={{
-        backgroundImage: "linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url('/profile-bg-2.jpg'), url('/profile-bg-2.svg')",
+        backgroundImage: "linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url('/roadimg.png'), url('/profile-bg-2.svg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundAttachment: "fixed"
