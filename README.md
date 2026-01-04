@@ -6,207 +6,86 @@ Student-built community app for testing.
 
 **Old site:** https://kcismedia-3ad38.web.app (maintenance page with a button linking to the new site)
 
-![KCIS Social](https://img.shields.io/badge/React-18.3-blue)
-![Firebase](https://img.shields.io/badge/Firebase-11.0-orange)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+> Disclaimer: 僅供測試用途，並非學校官方網站。
 
-## 🌟 Features
+## What this repo is
 
-### Core Features
-- **🔐 Authentication**: Secure login via Google OAuth
-- **📝 Posts**: Create, edit, and delete posts with text, images, videos, and GIFs
-- **💬 Real-time Chat**: Private messaging and group conversations with AI assistant support
-- **👥 Social Interactions**: Like, comment, save posts, follow users
-- **🎨 Customization**: Personal profile backgrounds and app themes
-- **🔔 Notifications**: Real-time notifications for likes, comments, follows, and messages
-- **🔍 Search**: Find users, posts, and content across the platform
-- **🏫 Clubs**: Create and manage school clubs with announcements and events
+This is a React + Vite web app that uses Firebase (Auth/Firestore/Hosting) to provide a lightweight community experience.
 
-### User Profiles
-- Customizable profile with avatar and background (image/video support)
-- Bio and role badges (Student, Teacher, Admin)
-- Online status visibility controls
-- Posts and saved content grids with video thumbnails
-- Follower/following statistics
+## Key features
 
-### Media Management
-- **Cloudinary Integration**: Efficient image and video uploads with automatic optimization
-- **Firebase Storage Fallback**: Reliable backup storage solution
-- Support for images, videos, and GIFs
-- Video thumbnail generation with playback icons
+- Google sign-in (Firebase Auth)
+- Posts, likes, comments, saves
+- Real-time chat
+- Profile pages + cover background
+- Clubs / communities
+- Music room (shared playback state / sync)
+- Notifications
 
-### AI Features
-- **AI Assistant**: Integrated chatbot for answering questions
-- **Content Moderation**: Automatic detection of inappropriate content (powered by OpenAI)
+## Tech stack
 
-### Themes & Personalization
-- Dark/Light mode support
-- Custom app theme backgrounds (visible only to you)
-- Profile backgrounds (visible to everyone)
-- Responsive design for mobile and desktop
+- React + TypeScript + Vite
+- Tailwind + shadcn/ui
+- Firebase Auth + Firestore + Hosting
 
-## 🚀 Tech Stack
-
-### Frontend
-- **React 18.3** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **shadcn/ui** for UI components
-- **React Router** for navigation
-- **Tanstack Query** for data fetching
-
-### Backend & Services
-- **Firebase Authentication** for user management
-- **Firebase Firestore** for database
-- **Firebase Storage** for media backup
-- **Cloudinary** for optimized media delivery
-- **OpenAI API** for AI features
-
-### Additional Libraries
-- **Lucide React** for icons
-- **date-fns** for date handling
-- **react-hook-form** for form management
-- **zod** for validation
-
-## 📦 Installation
+## Local development
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Firebase project
-- Cloudinary account
-- OpenAI API key (optional, for AI features)
 
-### Setup Instructions
+- Node.js 18+
+- Firebase project(s)
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/Superior-curtis/kcisocial.git
-cd kcisocial
-```
+### Setup
 
-2. **Install dependencies**
+1) Install dependencies
+
 ```bash
 npm install
 ```
 
-3. **Configure Firebase**
-   
-   Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
-   
-   Enable:
-   - Authentication (Google provider)
-   - Firestore Database
-   - Storage
-   - Hosting
+2) Create a local env file
 
-4. **Set up environment variables**
+- Copy `.env.example` to `.env`
+- Fill in your Firebase values
 
-   Create `src/lib/firebase.ts` with your Firebase config:
-   ```typescript
-   import { initializeApp } from 'firebase/app';
-   import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-   import { getFirestore } from 'firebase/firestore';
-   import { getStorage } from 'firebase/storage';
+Notes:
+- `.env` is intentionally git-ignored.
+- Do not commit secrets.
 
-   const firebaseConfig = {
-     apiKey: "YOUR_API_KEY",
-     authDomain: "YOUR_AUTH_DOMAIN",
-     projectId: "YOUR_PROJECT_ID",
-     storageBucket: "YOUR_STORAGE_BUCKET",
-     messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-     appId: "YOUR_APP_ID"
-   };
+3) Run dev server
 
-   const app = initializeApp(firebaseConfig);
-   export const auth = getAuth(app);
-   export const googleProvider = new GoogleAuthProvider();
-   export const firestore = getFirestore(app);
-   export const storage = getStorage(app);
-   ```
-
-5. **Configure Cloudinary**
-
-   Add your Cloudinary credentials to `src/lib/storage.ts`:
-   ```typescript
-   const CLOUDINARY_CLOUD_NAME = 'your_cloud_name';
-   const CLOUDINARY_UPLOAD_PRESET = 'your_upload_preset';
-   ```
-
-6. **Configure OpenAI (Optional)**
-
-   Add your OpenAI API key to `src/lib/openai.ts` for AI features.
-
-7. **Set up Firestore Security Rules**
-
-   Deploy the security rules from `firestore.rules`:
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
-
-8. **Run development server**
 ```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:8080`
+## Build
 
-## 🔨 Build & Deploy
-
-### Build for production
 ```bash
 npm run build
 ```
 
-### Deploy to Firebase Hosting
+## Deploy
+
+This repo supports deploying to two Firebase Hosting projects:
+
+### Deploy the new site (active)
+
 ```bash
-firebase deploy --only hosting
+npx -y firebase-tools deploy --only hosting --project campusmedia-01
 ```
 
-### Deploy everything (hosting + rules)
+### Deploy the old site (maintenance page)
+
+The old site is intentionally set to a static maintenance page that links to the new site.
+
 ```bash
-firebase deploy
+npx -y firebase-tools deploy --only hosting --project kcismedia-3ad38 --config firebase.old.json
 ```
 
-## 📁 Project Structure
+## Repo notes
 
-```
-kcis-connect-main/
-├── public/              # Static assets
-├── src/
-│   ├── components/      # React components
-│   │   ├── layout/     # Layout components (Header, Nav)
-│   │   ├── post/       # Post-related components
-│   │   ├── profile/    # Profile components
-│   │   └── ui/         # shadcn/ui components
-│   ├── contexts/       # React contexts (Auth, etc.)
-│   ├── hooks/          # Custom React hooks
-│   ├── lib/            # Utility libraries
-│   │   ├── firebase.ts # Firebase configuration
-│   │   ├── firestore.ts # Firestore helpers
-│   │   ├── storage.ts  # Media upload utilities
-│   │   └── openai.ts   # OpenAI integration
-│   ├── pages/          # Page components
-│   ├── types/          # TypeScript type definitions
-│   └── main.tsx        # Application entry point
-├── firestore.rules     # Firestore security rules
-├── firestore.indexes.json # Firestore indexes
-├── firebase.json       # Firebase configuration
-└── package.json        # Dependencies and scripts
-```
-
-## 🔒 Security
-
-- **Testing disclaimer**: This is for testing; not an official school website
-- **Firestore Security Rules**: Strict rules to protect user data
-- **Content Moderation**: AI-powered detection of inappropriate content
-- **Authentication**: Secure Google OAuth via Firebase
-
-## 🛠️ Deploy notes
-
-- **Deploy new site (campusmedia-01):** `firebase deploy --only hosting --project campusmedia-01`
-- **Deploy old site maintenance page (kcismedia-3ad38):** `firebase deploy --only hosting --project kcismedia-3ad38 --config firebase.old.json`
+- Old-site maintenance page source: `maintenance-dist/index.html`
+- Old-site deploy config: `firebase.old.json`
 
 ## 🎯 Key Features Explained
 
