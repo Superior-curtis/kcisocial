@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { ChevronRight, Moon, Bell, Lock, HelpCircle, Info, LogOut, Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
+import { ChevronRight, Moon, Bell, Lock, HelpCircle, Info, LogOut, Image as ImageIcon, Upload, Loader2, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -81,7 +81,7 @@ export default function Settings() {
   const handleLogout = async () => {
     if (confirm("Are you sure you want to log out?")) {
       await logout();
-      navigate('/');
+      navigate('/auth');
     }
   };
 
@@ -335,6 +335,22 @@ export default function Settings() {
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </button>
+
+            <button 
+              onClick={() => navigate('/terms')}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">Terms of Service</div>
+                  <div className="text-sm text-muted-foreground">Read the Terms</div>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </button>
           </div>
         </div>
 
@@ -352,8 +368,8 @@ export default function Settings() {
 
         {/* App Info */}
         <div className="p-4 text-center text-sm text-muted-foreground border-t border-border">
-          <p>KCIS Social v1.0.0</p>
-          <p className="mt-1">© 2025 KCIS Media</p>
+          <p>Campus Media (Test)</p>
+          <p className="mt-1">© 2026 Campus Media</p>
         </div>
       </div>
     </AppLayout>

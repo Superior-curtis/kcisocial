@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
-import { Users, MessageSquare, BookOpen, School } from 'lucide-react';
+import { Users, MessageSquare, BookOpen } from 'lucide-react';
 
 export default function Welcome() {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export default function Welcome() {
     <div 
       className="min-h-screen flex flex-col bg-cover bg-center relative"
       style={{
-        backgroundImage: "linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('/kcis-campus.jpg')",
+        backgroundImage: "linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('/profile-bg-2.jpg'), url('/profile-bg-2.svg')",
         backgroundAttachment: "fixed",
         backgroundSize: "cover",
         backgroundPosition: "center"
@@ -33,8 +33,8 @@ export default function Welcome() {
       <nav className="border-b border-border/50 bg-background/90 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <School className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold text-foreground">KCISocial</span>
+            <img src="/bridge.png" alt="Campus Media" className="w-7 h-7" />
+            <span className="text-xl font-bold text-foreground">Campus Media</span>
           </div>
           <Button variant="outline" onClick={() => navigate('/auth')}>
             Sign In
@@ -48,10 +48,10 @@ export default function Welcome() {
           {/* Main Title */}
           <div className="space-y-4">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white drop-shadow-lg">
-              KCIS Student Community
+              Campus Media
             </h1>
             <p className="text-lg md:text-xl text-gray-100 max-w-2xl mx-auto drop-shadow">
-              Connect with classmates, join clubs, and stay updated with school activities
+              A student community for sharing, chatting, and listening together
             </p>
           </div>
 
@@ -95,13 +95,13 @@ export default function Welcome() {
               onClick={() => navigate('/auth')}
               className="px-8 h-12 text-base"
             >
-              Sign in with KCIS Account
+              Sign In
             </Button>
           </div>
 
           {/* Footer Note */}
           <p className="text-sm text-muted-foreground pt-4">
-            For KCIS students only • Sign in with your @kcis.com.tw account
+            Testing-only build • Not an official school product
           </p>
         </div>
       </div>

@@ -23,13 +23,28 @@ class SimpleVoIPService {
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private callId: string | null = null;
-  private configuration: RTCConfiguration = {
-    iceServers: [
+  private configuration: RTCConfiguration = this.buildIceConfig();
+
+  private buildIceConfig(): RTCConfiguration {
+    const iceServers = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
-    ]
-  };
+      { urls: 'stun:stun2.l.google.com:19302' },
+    ];
+
+    const turnUrl = import.meta.env.VITE_TURN_URL;
+    const turnUser = import.meta.env.VITE_TURN_USERNAME;
+    const turnPass = import.meta.env.VITE_TURN_PASSWORD;
+
+    if (turnUrl && turnUser && turnPass) {
+      iceServers.push({ urls: turnUrl, username: turnUser, credential: turnPass });
+      console.log('[VoIP Service] Using TURN server from env:', turnUrl);
+    } else {
+      console.log('[VoIP Service] TURN not configured; using STUN only');
+    }
+
+    return { iceServers };
+  }
 
   /**
    * Start a call (caller side)
@@ -43,15 +58,32 @@ class SimpleVoIPService {
     try {
       console.log('[VoIP Service] Starting call:', {userId, recipientId, callType});
       
-      // Get local media
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: callType === 'video',
-        audio: true
-      });
-      console.log('[VoIP Service] Got local stream');
+      // Get local media with better error handling
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia({
+          video: callType === 'video' ? { width: 1280, height: 720 } : false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        console.log('[VoIP Service] Got local stream');
+      } catch (mediaError) {
+        // If video fails for video call, try audio only
+        if (callType === 'video') {
+          console.warn('[VoIP Service] Failed to get video, falling back to audio only');
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true
+          });
+        } else {
+          throw mediaError;
+        }
+      }
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection(this.configuration);
+      (window as any).__voipPeer = this.peerConnection;
       console.log('[VoIP Service] Created peer connection');
 
       // Add local tracks
@@ -186,15 +218,32 @@ class SimpleVoIPService {
       
       console.log('[VoIP Service] Found call document:', callData);
 
-      // Get local media
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: callData.callType === 'video',
-        audio: true
-      });
-      console.log('[VoIP Service] Got local stream for answer');
+      // Get local media with better error handling
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia({
+          video: callData.callType === 'video' ? { width: 1280, height: 720 } : false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        console.log('[VoIP Service] Got local stream for answer');
+      } catch (mediaError) {
+        // If video fails for video call, try audio only
+        if (callData.callType === 'video') {
+          console.warn('[VoIP Service] Failed to get video for answer, falling back to audio only');
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true
+          });
+        } else {
+          throw mediaError;
+        }
+      }
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection(this.configuration);
+      (window as any).__voipPeer = this.peerConnection;
       console.log('[VoIP Service] Created peer connection for answer');
 
       // Add local tracks
@@ -326,6 +375,7 @@ class SimpleVoIPService {
     // Close peer connection
     if (this.peerConnection) {
       this.peerConnection.close();
+      (window as any).__voipPeer = undefined;
       this.peerConnection = null;
     }
 
@@ -373,3 +423,4 @@ class SimpleVoIPService {
 }
 
 export const simpleVoIPService = new SimpleVoIPService();
+(window as any).__simpleVoIPService = simpleVoIPService;

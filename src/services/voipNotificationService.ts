@@ -4,8 +4,9 @@
  */
 
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, limit } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
+import { getGroupInfo } from '@/lib/firestore';
 
 export interface IncomingCall {
   callId: string;
@@ -14,6 +15,7 @@ export interface IncomingCall {
   fromAvatar: string;
   callType: 'video' | 'voice';
   timestamp: number;
+  groupId?: string;
 }
 
 class VoIPNotificationService {
@@ -26,43 +28,80 @@ class VoIPNotificationService {
   startListening(userId: string, onCall: (call: IncomingCall) => void) {
     this.onIncomingCall = onCall;
 
-    // Listen for calls where user is the recipient
+    // Listen for all pending calls (both 1-on-1 and group)
     const q = query(
       collection(firestore, 'voip_calls'),
-      where('to', '==', userId),
-      where('status', '==', 'pending')
+      where('status', '==', 'pending'),
+      limit(100)
     );
 
-    this.unsubscribe = onSnapshot(q, async (snapshot) => {
+    this.unsubscribe = onSnapshot(
+      q,
+      async (snapshot) => {
       snapshot.docChanges().forEach(async (change) => {
         if (change.type === 'added') {
           const data = change.doc.data();
           const callId = change.doc.id;
 
+          console.log('[VoIPNotificationService] Incoming call detected:', callId);
+
+          // Check if this is a 1-on-1 call or group call
+          const isForThisUser = data.to === userId || (data.type === 'group' && data.groupId);
+          
+          if (!isForThisUser) {
+            return; // Not for this user
+          }
+
+          // For group calls, check if user is a member
+          if (data.type === 'group' && data.groupId) {
+            try {
+              const groupInfo = await getGroupInfo(data.groupId);
+              if (!groupInfo || !groupInfo.members.includes(userId)) {
+                return; // User is not a member of this group
+              }
+            } catch (error) {
+              console.error('[VoIPNotificationService] Error checking group membership:', error);
+              return;
+            }
+          }
+
           // Get caller info
-          const callerDoc = await import('@/lib/firestore').then(m => 
-            m.getUserProfile(data.from)
-          );
+          try {
+            const callerDoc = await import('@/lib/firestore').then(m => 
+              m.getUserProfile(data.from)
+            );
 
-          const incomingCall: IncomingCall = {
-            callId,
-            from: data.from,
-            fromName: callerDoc?.displayName || callerDoc?.username || 'Unknown',
-            fromAvatar: callerDoc?.photoURL || '',
-            callType: data.callType,
-            timestamp: data.timestamp
-          };
+            const incomingCall: IncomingCall = {
+              callId,
+              from: data.from,
+              fromName: callerDoc?.displayName || callerDoc?.username || 'Unknown',
+              fromAvatar: (callerDoc as any)?.avatar || (callerDoc as any)?.['photoURL'] || (callerDoc as any)?.profileImageUrl || '',
+              callType: data.callType,
+              timestamp: data.timestamp,
+              groupId: data.groupId
+            };
 
-          // Show notification
-          this.showCallNotification(incomingCall);
+            console.log('[VoIPNotificationService] Triggering callback with:', incomingCall);
 
-          // Trigger callback
-          if (this.onIncomingCall) {
-            this.onIncomingCall(incomingCall);
+            // Show notification
+            this.showCallNotification(incomingCall);
+
+            // Trigger callback
+            if (this.onIncomingCall) {
+              this.onIncomingCall(incomingCall);
+            }
+          } catch (error) {
+            console.error('[VoIPNotificationService] Error processing incoming call:', error);
           }
         }
       });
-    });
+      },
+      (error) => {
+        console.error('[VoIPNotificationService] Listener error:', error);
+        // Stop to avoid thrashing when backend is in backoff/quota exceeded
+        this.stopListening();
+      },
+    );
   }
 
   /**

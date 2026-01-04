@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { collection, addDoc, query, where, getDocs, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 
 interface MusicRoom {
@@ -33,61 +33,63 @@ export default function MusicHallList() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [roomType, setRoomType] = useState<'public' | 'private'>('public');
+  const [joinMode, setJoinMode] = useState<'free' | 'invite'>('free');
   const [creating, setCreating] = useState(false);
   const [rooms, setRooms] = useState<MusicRoom[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Real-time listener for rooms
+  // Room list (one-time fetch to reduce Firestore quota usage)
   useEffect(() => {
-    console.log('[MusicHallList] Setting up Firestore listener');
-    
-    const q = query(
-      collection(firestore, 'music_rooms'),
-      orderBy('createdAt', 'desc')
-    );
+    const loadRooms = async () => {
+      try {
+        console.log('[MusicHallList] Fetching rooms (one-time)');
+        const q = query(collection(firestore, 'music_rooms'), orderBy('createdAt', 'desc'), limit(50));
+        const snapshot = await getDocs(q);
+        console.log('[MusicHallList] Received', snapshot.docs.length, 'rooms');
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log('[MusicHallList] Received', snapshot.docs.length, 'rooms');
-      
-      const roomsData: MusicRoom[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name || 'Untitled Room',
-          type: data.type || 'public',
-          creator: data.creator || 'unknown',
-          creatorName: data.creatorName || 'Unknown',
-          members: data.members || [],
-          currentTrack: data.currentTrack,
-          listeners: data.listeners || data.members?.length || 0,
-          createdAt: data.createdAt || Date.now()
+        const roomsData: MusicRoom[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data() as any;
+          const listenersCount = Array.isArray(data.listeners)
+            ? data.listeners.length
+            : typeof data.listeners === 'number'
+              ? data.listeners
+              : Array.isArray(data.members)
+                ? data.members.length
+                : 0;
+          return {
+            id: docSnap.id,
+            name: data.name || 'Untitled Room',
+            type: data.type || 'public',
+            creator: data.creator || data.creatorId || 'unknown',
+            creatorName: data.creatorName || 'Unknown',
+            members: data.members || [],
+            currentTrack: data.currentTrack,
+            listeners: listenersCount,
+            createdAt: data.createdAt || Date.now(),
+          };
+        });
+
+        const globalRoom: MusicRoom = {
+          id: 'global-public',
+          name: 'Public Lobby',
+          type: 'public',
+          creator: 'system',
+          creatorName: 'System',
+          members: [],
+          listeners: roomsData.filter((r) => r.type === 'public').reduce((sum, r) => sum + r.listeners, 0) + 1,
+          createdAt: 0,
         };
-      });
 
-      // Always include the global public room at the top
-      const globalRoom: MusicRoom = {
-        id: 'global-public',
-        name: 'Global Music Hall',
-        type: 'public',
-        creator: 'system',
-        creatorName: 'System',
-        members: [],
-        listeners: roomsData.filter(r => r.type === 'public').reduce((sum, r) => sum + r.listeners, 0) + 1,
-        createdAt: 0
-      };
-
-      setRooms([globalRoom, ...roomsData]);
-      setLoading(false);
-    }, (error) => {
-      console.error('[MusicHallList] Error listening to rooms:', error);
-      toast({ title: 'Failed to load rooms', variant: 'destructive' });
-      setLoading(false);
-    });
-
-    return () => {
-      console.log('[MusicHallList] Cleaning up listener');
-      unsubscribe();
+        setRooms([globalRoom, ...roomsData]);
+      } catch (error) {
+        console.error('[MusicHallList] Error loading rooms:', error);
+        toast({ title: 'Failed to load rooms', variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
     };
+
+    loadRooms();
   }, []);
 
   const handleCreateRoom = async () => {
@@ -105,13 +107,23 @@ export default function MusicHallList() {
       const roomDoc = await addDoc(collection(firestore, 'music_rooms'), {
         name: roomName.trim(),
         type: roomType,
+        joinMode: joinMode,
         creator: user.id,
+        creatorId: user.id,
         creatorName: user.displayName || user.username || 'User',
         members: [user.id],
         controllers: [user.id], // Users who can control playback
         queue: [],
         currentTrack: null,
         isPlaying: false,
+        currentTime: 0,
+        startedAt: null,
+        listeners: [],
+        shuffleEnabled: false,
+        repeatMode: 'off',
+        playHistory: [],
+        controlMusic: 'owner',
+        controlQueue: 'owner',
         createdAt: Date.now()
       });
 
@@ -124,6 +136,7 @@ export default function MusicHallList() {
       setCreating(false);
       setShowCreateDialog(false);
       setRoomName('');
+      setJoinMode('free');
     }
   };
 
@@ -136,7 +149,7 @@ export default function MusicHallList() {
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={() => navigate('/club')}
+              onClick={() => navigate('/clubs')}
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
@@ -288,6 +301,31 @@ export default function MusicHallList() {
                     <Lock className="w-5 h-5 mb-2" />
                     <div className="font-semibold">Private</div>
                     <div className="text-xs text-muted-foreground">Invite only</div>
+                  </Card>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Join Mode</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Card
+                    className={`p-4 cursor-pointer transition-colors ${
+                      joinMode === 'free' ? 'border-primary bg-primary/5' : 'hover:bg-accent'
+                    }`}
+                    onClick={() => setJoinMode('free')}
+                  >
+                    <Globe className="w-5 h-5 mb-2" />
+                    <div className="font-semibold">Free Join</div>
+                    <div className="text-xs text-muted-foreground">Everyone can enter</div>
+                  </Card>
+                  <Card
+                    className={`p-4 cursor-pointer transition-colors ${
+                      joinMode === 'invite' ? 'border-primary bg-primary/5' : 'hover:bg-accent'
+                    }`}
+                    onClick={() => setJoinMode('invite')}
+                  >
+                    <Lock className="w-5 h-5 mb-2" />
+                    <div className="font-semibold">Invite Only</div>
+                    <div className="text-xs text-muted-foreground">Need invitation</div>
                   </Card>
                 </div>
               </div>

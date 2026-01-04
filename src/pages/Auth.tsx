@@ -1,12 +1,21 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
-import { Sparkles, Users, MessageCircle, Heart } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, Users, MessageCircle, Heart, Key } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Auth() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, loginWithEmail, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [showDevLogin, setShowDevLogin] = useState(false);
+  const [showMaintenance, setShowMaintenance] = useState(false);
+  const [email, setEmail] = useState('admin@kcis.com.tw');
+  const [password, setPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -21,11 +30,49 @@ export default function Auth() {
     }
   };
 
+  const handleDevLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Only allow this specific email
+    if (email !== 'admin@kcis.com.tw') {
+      return;
+    }
+    
+    setLoggingIn(true);
+    try {
+      // Try to login with email/password
+      await loginWithEmail(email, password);
+      setShowDevLogin(false);
+      navigate('/feed');
+    } catch (error: any) {
+      console.log('Login error:', error?.code, error?.message);
+      
+      // If user not found or invalid credential, try to create with email/password
+      if (error?.code === 'auth/invalid-credential' || error?.code === 'auth/user-not-found') {
+        try {
+          const { createUserWithEmailAndPassword } = await import('firebase/auth');
+          const { auth } = await import('@/lib/firebase');
+          const result = await createUserWithEmailAndPassword(auth, email, password);
+          console.log('Account created with email/password:', result.user.uid);
+          setShowDevLogin(false);
+        } catch (createError: any) {
+          console.error('Failed to create account:', createError?.code, createError?.message);
+          // If creation fails because user exists (from Google Auth), user needs to set password in Firebase Console
+          if (createError?.code === 'auth/email-already-in-use') {
+            alert('This email already exists from Google Sign-in. Please set a password in Firebase Console:\n\n1. Go to Firebase Console → Authentication → Users\n2. Find admin@kcis.com.tw\n3. Click "Set Password"\n4. Enter: adminad');
+          }
+        }
+      }
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
   return (
     <div 
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
       style={{
-        backgroundImage: "linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url('/kcis-campus.jpg')",
+        backgroundImage: "linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url('/profile-bg-2.jpg'), url('/profile-bg-2.svg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundAttachment: "fixed"
@@ -54,12 +101,12 @@ export default function Auth() {
 
         {/* Main content */}
         <div className="text-center space-y-8 animate-fade-in-up">
-          {/* Logo with sparkle effect */}
+          {/* Title with sparkle effect */}
           <div className="relative inline-block">
             <Sparkles className="absolute -top-6 -right-6 w-8 h-8 text-yellow-400 animate-pulse" />
             <Sparkles className="absolute -top-8 -right-2 w-6 h-6 text-yellow-300 animate-pulse" style={{ animationDelay: '0.3s' }} />
-            <h1 className="text-7xl font-bold bg-gradient-to-r from-yellow-200 via-white to-blue-200 bg-clip-text text-transparent animate-gradient drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]">
-              Welcome
+            <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-yellow-200 via-white to-blue-200 bg-clip-text text-transparent animate-gradient drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]">
+              Campus Media
             </h1>
             <Sparkles className="absolute -bottom-4 -left-4 w-6 h-6 text-blue-300 animate-pulse" style={{ animationDelay: '0.5s' }} />
             <Sparkles className="absolute -bottom-6 left-2 w-5 h-5 text-blue-400 animate-pulse" style={{ animationDelay: '0.7s' }} />
@@ -67,12 +114,17 @@ export default function Auth() {
 
           {/* Subtitle with gradient */}
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              Kang Chiao International School
-            </h2>
             <p className="text-xl text-gray-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              Student Social Platform
+              Student-built community (testing)
             </p>
+          </div>
+
+          <div className="pt-4 animate-fade-in" style={{ animationDelay: '0.35s' }}>
+            <Alert className="bg-background/40 backdrop-blur-sm border-border/40">
+              <AlertDescription className="text-xs text-muted-foreground">
+                僅供測試用途，並非學校官方網站。
+              </AlertDescription>
+            </Alert>
           </div>
 
           {/* Login button */}
@@ -108,7 +160,7 @@ export default function Auth() {
 
           {/* Footer note */}
           <p className="text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '0.5s' }}>
-            Use your <span className="font-semibold text-foreground">@kcis.com.tw</span> email
+            This is a test build • See <button className="underline hover:opacity-80" onClick={() => navigate('/terms')}>Terms of Service</button>
           </p>
         </div>
       </div>
@@ -134,6 +186,81 @@ export default function Auth() {
           animation: gradient 3s ease infinite;
         }
       `}</style>
+
+      {/* Maintenance Button */}
+      <button
+        onClick={() => setShowMaintenance(true)}
+        className="fixed bottom-6 right-6 z-50 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full p-3 border border-white/20 transition-all duration-300 hover:scale-110 shadow-lg"
+        title="Maintenance"
+      >
+        <Key className="w-5 h-5" />
+      </button>
+
+      {/* Maintenance Dialog */}
+      <Dialog open={showMaintenance} onOpenChange={setShowMaintenance}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Maintenance</DialogTitle>
+            <DialogDescription>
+              Administrator access
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Button 
+              onClick={() => {
+                setShowMaintenance(false);
+                setShowDevLogin(true);
+              }} 
+              className="w-full"
+            >
+              Developer Login
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Developer Login Dialog */}
+      <Dialog open={showDevLogin} onOpenChange={setShowDevLogin}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Developer Login</DialogTitle>
+            <DialogDescription>
+              Login with email and password
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDevLogin} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@kcis.com.tw"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loggingIn}
+                readOnly
+                defaultValue="admin@kcis.com.tw"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loggingIn}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loggingIn}>
+              {loggingIn ? 'Logging in...' : 'Login'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

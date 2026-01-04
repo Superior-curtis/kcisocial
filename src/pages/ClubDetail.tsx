@@ -18,7 +18,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import musicService from '@/services/kkboxService';
 import MusicRoom from '@/components/MusicRoom';
 
 interface Club {

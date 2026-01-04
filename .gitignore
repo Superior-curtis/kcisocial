@@ -25,3 +25,10 @@ dist-ssr
 
 .vercel
 .env*.local
+
+# Local env (use .env.example as template)
+.env
+
+# Firebase local cache
+.firebase/
+firebase-debug.log*

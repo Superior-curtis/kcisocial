@@ -98,7 +98,7 @@ export default function UserProfile() {
     switch (role) {
       case 'teacher': return { label: 'Teacher', className: 'bg-blue-500/10 text-blue-500 border-blue-500/20' };
       case 'admin': return { label: 'Administrator', className: 'bg-red-600/10 text-red-600 border-red-600/20' };
-      case 'official': return { label: 'Official', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+      case 'official': return { label: 'Verified', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
       case 'club': return { label: 'Club', className: 'bg-green-500/10 text-green-500 border-green-500/20' };
       default: return { label: 'Student', className: 'bg-secondary text-secondary-foreground border-border' };
     }
@@ -125,45 +125,45 @@ export default function UserProfile() {
     }
   };
 
+  const profileBackground = user.profileBackground || '/roadimg.png';
+
   return (
-    <AppLayout title={user.username} showSearch={false} showCreate={false} disableTheme={true} noBackground={!!user.profileBackground}>
+    <AppLayout title={user.username} showSearch={false} showCreate={false} disableTheme={true} noBackground={true}>
       <div className="animate-fade-in relative overflow-hidden">
         {/* Profile Background with Auth-style overlay */}
-        {user.profileBackground && (
-          <>
-            <div 
-              className="absolute inset-0 w-full h-full bg-cover bg-center"
-              style={{
-                backgroundImage: user.profileBackground.startsWith('data:video/') 
-                  ? 'none'
-                  : `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${user.profileBackground})`,
-                backgroundAttachment: "scroll",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                filter: "blur(8px)",
-              }}
-            />
-            {user.profileBackground.startsWith('data:video/') && (
-              <>
-                <video 
-                  src={user.profileBackground} 
-                  className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay 
-                  loop 
-                  muted 
-                  playsInline
-                  style={{
-                    filter: "blur(8px)",
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/50"></div>
-              </>
-            )}
-          </>
-        )}
+        <>
+          <div 
+            className="absolute inset-0 w-full h-full bg-cover bg-center"
+            style={{
+              backgroundImage: profileBackground.startsWith('data:video/') 
+                ? 'none'
+                : `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${profileBackground}), url(/profile-bg-2.svg)`,
+              backgroundAttachment: "scroll",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(8px)",
+            }}
+          />
+          {profileBackground.startsWith('data:video/') && (
+            <>
+              <video 
+                src={profileBackground} 
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay 
+                loop 
+                muted 
+                playsInline
+                style={{
+                  filter: "blur(8px)",
+                }}
+              />
+              <div className="absolute inset-0 bg-black/50"></div>
+            </>
+          )}
+        </>
         
         {/* Profile Header */}
-        <div className={cn("p-6 relative z-10", user.profileBackground && "bg-background/80 backdrop-blur-sm")}>
+        <div className={cn("p-6 relative z-10", "bg-background/80 backdrop-blur-sm")}>
           <div className="flex items-start gap-6 mb-6">
             <div className="relative">
               <Avatar className="w-20 h-20 ring-4 ring-primary/20 shadow-lg">

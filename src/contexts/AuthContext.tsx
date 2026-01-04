@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { ensureUserDocument, isSchoolEmail, listenToUserProfile, ensureAIAssistantUser } from "@/lib/firestore";
 import { User, UserRole } from "@/types";
 import { toast } from "@/hooks/use-toast";
+import { voipNotificationService, type IncomingCall } from "@/services/voipNotificationService";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (requiredRoles: UserRole[]) => boolean;
   // Impersonation
@@ -18,6 +20,10 @@ interface AuthContextType {
   startImpersonation: (userId: string, impersonatedUser: User) => void;
   stopImpersonation: () => void;
   isImpersonating: boolean;
+  // VoIP
+  incomingCall: IncomingCall | null;
+  acceptIncomingCall: () => void;
+  declineIncomingCall: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [actualUser, setActualUser] = useState<User | null>(null);
   const [impersonatingUser, setImpersonatingUser] = useState<User | null>(null);
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const profileUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -54,9 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = await ensureUserDocument(authUser);
         setUser(profile);
 
-        // Initialize AI assistant user if not already done
+        // Initialize AI assistant user if enabled
         try {
-          await ensureAIAssistantUser();
+          const enableAiAssistantBootstrap = String(import.meta.env.VITE_ENABLE_AI_ASSISTANT_BOOTSTRAP || '').toLowerCase() === 'true';
+          if (enableAiAssistantBootstrap) {
+            await ensureAIAssistantUser();
+          }
         } catch (err) {
           console.warn('Failed to initialize AI assistant user:', err);
         }
@@ -161,6 +171,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithEmail = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const authUser = result.user;
+      const profile = await ensureUserDocument(authUser);
+      setUser(profile);
+      toast({ title: "Login successful", description: "Welcome back, developer!", duration: 2000 });
+    } catch (error) {
+      console.error("Email login failed", error);
+      toast({ title: "Login failed", description: (error as Error).message, variant: "destructive" });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
     setUser(null);
@@ -212,6 +239,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, actualUser, impersonatingUser]);
 
+  // Global VoIP notification listener
+  useEffect(() => {
+    if (!user) return;
+
+    const enableVoipNotifications = String(import.meta.env.VITE_ENABLE_VOIP_NOTIFICATIONS || '').toLowerCase() === 'true';
+    if (!enableVoipNotifications) {
+      return;
+    }
+
+    try {
+      console.log('[Auth] Starting global VoIP listener for user:', user.id);
+      voipNotificationService.requestPermission();
+      
+      voipNotificationService.startListening(user.id, (call) => {
+        console.log('[Auth] Incoming call:', call);
+        setIncomingCall(call);
+      });
+    } catch (error) {
+      console.error('[Auth] Failed to start VoIP listener:', error);
+    }
+
+    return () => {
+      try {
+        console.log('[Auth] Stopping global VoIP listener');
+        voipNotificationService.stopListening();
+      } catch (error) {
+        console.error('[Auth] Failed to stop VoIP listener:', error);
+      }
+    };
+  }, [user]);
+
+  const acceptIncomingCall = () => {
+    setIncomingCall(null);
+    // Navigation to chat page will be handled by the caller
+  };
+
+  const declineIncomingCall = async () => {
+    if (incomingCall) {
+      await voipNotificationService.declineCall(incomingCall.callId);
+      setIncomingCall(null);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -219,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginWithEmail,
         logout,
         hasPermission,
         impersonatingUser,
@@ -226,6 +297,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         startImpersonation,
         stopImpersonation,
         isImpersonating: !!impersonatingUser,
+        incomingCall,
+        acceptIncomingCall,
+        declineIncomingCall,
       }}
     >
       {children}

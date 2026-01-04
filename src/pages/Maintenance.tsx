@@ -90,7 +90,7 @@ export default function Maintenance({ message = 'We are currently performing mai
         {/* Footer */}
         <div className="space-y-3 pt-6">
           <p className="text-white/70 text-sm">
-            Thank you for your patience while we improve KCISocial.
+            Thank you for your patience while we improve Campus Media.
           </p>
           <div className="flex justify-center gap-2">
             <div className="w-2 h-2 rounded-full bg-white/50 animate-pulse" />

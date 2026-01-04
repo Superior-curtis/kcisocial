@@ -124,7 +124,7 @@ export default function Profile() {
     switch (role) {
       case 'teacher': return { label: 'Teacher', className: 'bg-blue-500/10 text-blue-500 border-blue-500/20' };
       case 'admin': return { label: 'Administrator', className: 'bg-red-600/10 text-red-600 border-red-600/20' };
-      case 'official': return { label: 'Official', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+      case 'official': return { label: 'Verified', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
       case 'club': return { label: 'Club', className: 'bg-green-500/10 text-green-500 border-green-500/20' };
       default: return { label: 'Student', className: 'bg-secondary text-secondary-foreground border-border' };
     }
@@ -188,7 +188,10 @@ export default function Profile() {
               <div 
                 className="absolute inset-0 w-full h-full"
                 style={{
-                  backgroundImage: "linear-gradient(135deg, rgba(59,130,246,0.25), rgba(147,51,234,0.25))",
+                  backgroundImage: "linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('/roadimg.png')",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
                 }}
               />
             )}
@@ -457,7 +460,10 @@ export default function Profile() {
           <Button 
             variant="outline" 
             className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={logout}
+            onClick={async () => {
+              await logout();
+              navigate('/auth');
+            }}
           >
             <LogOut className="w-4 h-4 mr-2" />
             Log Out

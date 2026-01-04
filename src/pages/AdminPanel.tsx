@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, getDocs, deleteDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -66,6 +66,15 @@ interface ActivityLog {
   createdAt: Date;
 }
 
+interface MusicRoomAdminItem {
+  id: string;
+  clubId?: string;
+  creatorId?: string;
+  currentTrackName?: string;
+  listenersCount: number;
+  queueCount: number;
+}
+
 export default function AdminPanel() {
   const { user, startImpersonation, stopImpersonation, isImpersonating } = useAuth();
   const navigate = useNavigate();
@@ -80,6 +89,7 @@ export default function AdminPanel() {
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [estimatedEndTime, setEstimatedEndTime] = useState<Date | null>(null);
   const [updatingMaintenance, setUpdatingMaintenance] = useState(false);
+  const [musicRooms, setMusicRooms] = useState<MusicRoomAdminItem[]>([]);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -143,6 +153,27 @@ export default function AdminPanel() {
       setUsers(usersList);
     });
 
+    // Listen to music rooms (admin delete capability)
+    const unsubMusicRooms = onSnapshot(collection(firestore, 'music_rooms'), (snapshot) => {
+      const rooms: MusicRoomAdminItem[] = [];
+      snapshot.forEach((d) => {
+        const data: any = d.data();
+        const listeners = Array.isArray(data.listeners) ? data.listeners : [];
+        const queue = Array.isArray(data.queue) ? data.queue : [];
+        rooms.push({
+          id: d.id,
+          clubId: data.clubId,
+          creatorId: data.creatorId,
+          currentTrackName: data.currentTrack?.name,
+          listenersCount: listeners.length,
+          queueCount: queue.length,
+        });
+      });
+      // Stable-ish ordering: most active first
+      rooms.sort((a, b) => (b.listenersCount + b.queueCount) - (a.listenersCount + a.queueCount));
+      setMusicRooms(rooms);
+    });
+
     // Get stats
     Promise.all([
       onSnapshot(collection(firestore, 'users'), (snap) => {
@@ -201,8 +232,20 @@ export default function AdminPanel() {
     return () => {
       unsubHelp();
       unsubUsers();
+      unsubMusicRooms();
     };
   }, [user, navigate]);
+
+  const handleDeleteMusicRoom = async (roomId: string) => {
+    if (!confirm(`Delete music room "${roomId}"?`)) return;
+    try {
+      await deleteDoc(doc(firestore, 'music_rooms', roomId));
+      toast({ title: 'Room deleted', description: roomId });
+    } catch (error) {
+      console.error('Failed to delete room:', error);
+      toast({ title: 'Failed to delete room', variant: 'destructive' });
+    }
+  };
 
   const updateRequestStatus = async (requestId: string, status: 'pending' | 'resolved' | 'in-progress') => {
     try {
@@ -724,6 +767,7 @@ export default function AdminPanel() {
 
           {/* Maintenance Mode Tab */}
           <TabsContent value="maintenance" className="mt-4">
+                <div className="space-y-4">
                 <Card className="border-yellow-500/50 bg-yellow-50/30 dark:bg-yellow-950/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -853,6 +897,46 @@ export default function AdminPanel() {
                     )}
                   </CardContent>
                 </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Trash2 className="w-5 h-5" />
+                      Music Rooms
+                    </CardTitle>
+                    <CardDescription>
+                      Delete live music rooms (Firestore: music_rooms)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {musicRooms.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No rooms found.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {musicRooms.map((r) => (
+                          <div key={r.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{r.id}</div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                clubId: {r.clubId || '—'} • creatorId: {r.creatorId || '—'}
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                track: {r.currentTrackName || '—'} • listeners: {r.listenersCount} • queue: {r.queueCount}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteMusicRoom(r.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                </div>
               </TabsContent>
         </Tabs>
       </div>

@@ -50,6 +50,29 @@ export default function Chat() {
   const isGroupChat = queryParams.get('group') === 'true';
   const isAnonymousWall = otherId === 'anonymous';
 
+  // Check for incoming call from URL params (from global notification)
+  useEffect(() => {
+    const voipType = queryParams.get('voip');
+    const callId = queryParams.get('callId');
+    const callTypeParam = queryParams.get('callType') as 'video' | 'voice';
+    
+    if (voipType === 'incoming' && callId && callTypeParam && otherId) {
+      console.log('[Chat] Auto-answering incoming call from global notification');
+      setShowVideoCall(true);
+      setCallType(callTypeParam);
+      setCurrentCallId(callId);
+      setIsIncomingCallAnswered(true);
+      setAnsweredCallInfo({
+        from: otherId,
+        fromName: otherUserName || 'Unknown',
+        fromAvatar: otherUserProfile?.avatar || ''
+      });
+      // Clean up URL
+      navigate(location.pathname + (isGroupChat ? '?group=true' : ''), { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]); // Only run when URL search params change
+
   // Handle anonymous wall display
   if (isAnonymousWall) {
     return (
@@ -143,24 +166,6 @@ export default function Chat() {
       setFollowingLoading(false);
     }
   };
-
-  // VoIP incoming call listener
-  useEffect(() => {
-    if (!user) return;
-
-    // Request notification permission
-    voipNotificationService.requestPermission();
-
-    // Start listening for incoming calls
-    voipNotificationService.startListening(user.id, (call) => {
-      setIncomingCall(call);
-      setCurrentCallId(call.callId);
-    });
-
-    return () => {
-      voipNotificationService.stopListening();
-    };
-  }, [user?.id]);
 
   // Handle incoming call answer
   const handleAnswerCall = () => {
@@ -549,28 +554,61 @@ export default function Chat() {
             <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach media">
               <Paperclip className="w-5 h-5" />
             </Button>
+            {/* Voice/Video call buttons - for 1-on-1 and group chats */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => { 
+                if (isGroupChat) {
+                  if (!groupInfo || !groupMembers.length) {
+                    toast({ title: "Loading group information...", duration: 2000 });
+                    return;
+                  }
+                  setCallType('video');
+                  setCurrentCallId(`group_${groupInfo.id}_${Date.now()}`);
+                } else {
+                  if (!otherId || !otherUserName) {
+                    toast({ title: "Loading user information...", duration: 2000 });
+                    return;
+                  }
+                  setCallType('video');
+                  setCurrentCallId(`${user?.id}_${otherId}_${Date.now()}`);
+                }
+                setShowVideoCall(true); 
+              }} 
+              title="Start video call"
+            >
+              <Video className="w-5 h-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => { 
+                if (isGroupChat) {
+                  if (!groupInfo || !groupMembers.length) {
+                    toast({ title: "Loading group information...", duration: 2000 });
+                    return;
+                  }
+                  setCallType('voice');
+                  setCurrentCallId(`group_${groupInfo.id}_${Date.now()}`);
+                } else {
+                  if (!otherId || !otherUserName) {
+                    toast({ title: "Loading user information...", duration: 2000 });
+                    return;
+                  }
+                  setCallType('voice');
+                  setCurrentCallId(`${user?.id}_${otherId}_${Date.now()}`);
+                }
+                setShowVideoCall(true); 
+              }} 
+              title="Start voice call"
+            >
+              <Phone className="w-5 h-5" />
+            </Button>
             {!isGroupChat && (
-              <>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => { setCallType('video'); setShowVideoCall(true); }} 
-                  title="Start video call"
-                >
-                  <Video className="w-5 h-5" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => { setCallType('voice'); setShowVideoCall(true); }} 
-                  title="Start voice call"
-                >
-                  <Phone className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setShowVoiceRecorder(true)} title="Send voice message">
-                  <Mic className="w-5 h-5" />
-                </Button>
-              </>
+              <Button variant="ghost" size="icon" onClick={() => setShowVoiceRecorder(true)} title="Send voice message">
+                <Mic className="w-5 h-5" />
+              </Button>
             )}
             <Input placeholder="Message" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
             <Button onClick={send} disabled={uploading || (!text.trim() && !mediaUrl)}>Send</Button>
@@ -629,53 +667,8 @@ export default function Chat() {
         </DialogContent>
       </Dialog>
 
-      {/* Incoming Call Dialog */}
-      {incomingCall && (
-        <Dialog open={true} onOpenChange={() => handleDeclineCall()}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-center">
-                {incomingCall.callType === 'video' ? '📹' : '📞'} Incoming Call
-              </DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col items-center gap-4 py-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={incomingCall.fromAvatar} />
-                <AvatarFallback className="text-2xl">
-                  {incomingCall.fromName.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="text-center">
-                <p className="text-xl font-semibold">{incomingCall.fromName}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {incomingCall.callType === 'video' ? 'Video' : 'Voice'} Call
-                </p>
-              </div>
-              <div className="flex gap-4 mt-4">
-                <Button
-                  variant="destructive"
-                  size="lg"
-                  onClick={handleDeclineCall}
-                  className="rounded-full w-16 h-16"
-                >
-                  <X className="w-8 h-8" />
-                </Button>
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={handleAnswerCall}
-                  className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600"
-                >
-                  <Phone className="w-8 h-8" />
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
       {/* VoIP Call */}
-      {showVideoCall && otherId && (
+      {showVideoCall && (
         <SimpleVoIPCall
           userId={user?.id || ''}
           userName={user?.displayName || 'User'}
@@ -685,6 +678,8 @@ export default function Chat() {
           callType={callType}
           isIncoming={isIncomingCallAnswered}
           callId={currentCallId}
+          isGroupCall={isGroupChat}
+          groupId={isGroupChat ? otherId : undefined}
           onEndCall={() => {
             setShowVideoCall(false);
             setIncomingCall(null);

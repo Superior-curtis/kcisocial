@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SpotifyTrack } from '@/types';
-import musicService from '@/services/kkboxService';
 
 const MusicPlayer: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,11 +21,10 @@ const MusicPlayer: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const results = await musicService.searchTracks(searchQuery);
-      setTracks(results as SpotifyTrack[]);
-      if (results.length === 0) {
-        setError('No tracks found. Try a different search.');
-      }
+      // KKBOX service removed - music now managed in MusicRoom
+      // const results = await musicService.searchTracks(searchQuery);
+      setTracks([]);
+      setError('Use Music Room to search and play music');
     } catch (error) {
       console.error('Search failed:', error);
       setError('Failed to search tracks. Please try again.');
@@ -76,7 +74,7 @@ const MusicPlayer: React.FC = () => {
             Music Player
           </CardTitle>
           <p className="text-white/80 text-sm mt-1">
-            🎵 Preview here, play full songs on Spotify or KKBOX!
+            🎵 Preview here, play full songs on KKBOX!
           </p>
         </CardHeader>
         <CardContent>
@@ -156,15 +154,9 @@ const MusicPlayer: React.FC = () => {
               {tracks.map((track, idx) => (
                 <div
                   key={`${track.id}-${idx}`}
-                  className={`flex items-center gap-3 p-3 hover:bg-slate-800 transition border-b border-slate-800 last:border-0 ${
-                    track.source === 'spotify' ? 'bg-green-900/20' : ''
-                  }`}
+                  className="flex items-center gap-3 p-3 hover:bg-slate-800 transition border-b border-slate-800 last:border-0"
                 >
-                  {track.id === 'spotify-search' ? (
-                    <div className="w-14 h-14 rounded bg-green-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xl">🎵</span>
-                    </div>
-                  ) : track.image ? (
+                  {track.image ? (
                     <img
                       src={track.image}
                       alt={track.name}
@@ -187,27 +179,14 @@ const MusicPlayer: React.FC = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {track.source === 'spotify' ? (
-                      <a
-                        href={track.spotifyUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-xs font-medium transition"
-                        title="Play on Spotify (full song)"
-                      >
-                        <span>Spotify</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <>
-                        <span className="text-slate-400 text-xs whitespace-nowrap">
-                          {track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : ''}
-                        </span>
-                        {track.previewUrl && (
-                          <Button
-                            size="sm"
-                            variant={currentTrack?.id === track.id ? 'default' : 'outline'}
-                            onClick={() => handlePlayPreview(track)}
+                    <span className="text-slate-400 text-xs whitespace-nowrap">
+                      {track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : ''}
+                    </span>
+                    {track.previewUrl && (
+                      <Button
+                        size="sm"
+                        variant={currentTrack?.id === track.id ? 'default' : 'outline'}
+                        onClick={() => handlePlayPreview(track)}
                             className="rounded-full w-9 h-9 p-0"
                             title="Play 30s preview"
                           >
@@ -225,12 +204,11 @@ const MusicPlayer: React.FC = () => {
                           <span>KKBOX</span>
                           <ExternalLink className="w-3 h-3" />
                         </a>
-                      </>
-                    )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
           </CardContent>
         </Card>
       )}

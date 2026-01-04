@@ -43,7 +43,7 @@ export function Header({ title = 'KCISocial', showSearch = true, showCreate = tr
             onClick={() => navigate('/feed')}
             className="text-xl font-bold text-foreground hover:opacity-70 transition-opacity"
           >
-            KCISocial
+            Campus Media
           </button>
           {showSearch && (
             <Button variant="icon" size="icon-sm" onClick={() => setOpenSearch(true)}>

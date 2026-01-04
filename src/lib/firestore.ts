@@ -260,7 +260,12 @@ export async function ensureUserDocument(authUser: FirebaseUser): Promise<User> 
       lastSeen: now as Timestamp,
     };
 
-    await setDoc(userRef, userPayload);
+    // Filter out undefined values before saving to Firestore
+    const userDataToSave = Object.fromEntries(
+      Object.entries(userPayload).filter(([_, value]) => value !== undefined)
+    ) as UserRecord;
+
+    await setDoc(userRef, userDataToSave);
     const created: UserRecord = { ...userPayload, createdAt: userPayload.createdAt };
     const user = toUser(uid, created);
     profileCache.set(uid, user);

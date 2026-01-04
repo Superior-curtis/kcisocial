@@ -1,0 +1,36 @@
+  /**
+   * Add listener with user info
+   */
+  private async addListener(userId: string, userName?: string, userAvatar?: string): Promise<void> {
+    if (!this.roomId) return;
+
+    const roomRef = doc(firestore, 'music_rooms', this.roomId);
+    const roomDoc = await getDoc(roomRef);
+    const roomData = roomDoc.data() as MusicRoomState;
+
+    // Convert listeners to ListenerInfo format
+    const listeners = Array.isArray(roomData.listeners) ? roomData.listeners : [];
+    const listenerArray: ListenerInfo[] = listeners.map(l => 
+      typeof l === 'string' ? { userId: l, userName: 'Anonymous', joinedAt: Date.now() } : l
+    );
+
+    // Check if user is already listening
+    const isAlreadyListening = listenerArray.some(l => l.userId === userId);
+
+    if (!isAlreadyListening) {
+      console.log(`[SyncMusic] Adding listener ${userName} (${userId}), current count: ${listenerArray.length}`);
+
+      const newListener: ListenerInfo = {
+        userId,
+        userName: userName || 'Anonymous',
+        avatar: userAvatar || '',
+        joinedAt: Date.now()
+      };
+      
+      await updateDoc(roomRef, {
+        listeners: [...listenerArray, newListener]
+      });
+    } else {
+      console.log(`[SyncMusic] User ${userName} (${userId}) already in listeners list`);
+    }
+  }

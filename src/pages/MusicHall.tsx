@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import MusicRoom from '@/components/MusicRoom';
+import { musicHallService } from '@/services/musicHallService';
 
 export default function MusicHall() {
   const { clubId, roomId } = useParams<{ clubId?: string; roomId?: string }>();
@@ -30,13 +31,20 @@ export default function MusicHall() {
           if (clubDoc.exists()) {
             setDisplayName(clubDoc.data().name || 'Club');
           }
+          // Club rooms don't have background music
         } else {
-          // Fetch music room information
-          const roomDoc = await getDoc(doc(firestore, 'music_rooms', roomId!));
-          if (roomDoc.exists()) {
-            const roomData = roomDoc.data();
-            setDisplayName(roomData.name || 'Music Room');
-            setRoomType(roomData.type || 'public');
+          // Check if this is the global Music Hall
+          if (musicHallService.isGlobalPublic(roomId!)) {
+            setDisplayName('🌍 Public Lobby');
+            // Background music disabled - users control music manually
+          } else {
+            // Fetch regular music room information
+            const roomDoc = await getDoc(doc(firestore, 'music_rooms', roomId!));
+            if (roomDoc.exists()) {
+              const roomData = roomDoc.data();
+              setDisplayName(roomData.name || 'Music Room');
+              setRoomType(roomData.type || 'public');
+            }
           }
         }
       } catch (error) {
@@ -94,7 +102,6 @@ export default function MusicHall() {
           <MusicRoom 
             clubId={effectiveRoomId} 
             clubName={displayName}
-            isPrivate={roomType === 'private'}
           />
         </div>
       </div>
