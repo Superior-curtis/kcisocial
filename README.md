@@ -111,6 +111,101 @@ repo 內有 VoIP 相關元件與 service（依你實際部署是否啟用）。
 - Auth：登入
 - Hosting：部署 SPA（rewrites 到 `/index.html`）
 
+### 3.3 路由（Routes）一覽
+
+以下整理自 `src/App.tsx`，用來快速理解整個產品有哪些頁面、哪些需要登入、哪些是管理員限定。
+
+| Path | Page | 是否需登入 | 備註 |
+|---|---|---:|---|
+| `/` | Index | 否 | 首頁/入口 |
+| `/welcome` | Welcome | 否 | 介紹/導覽（依版本） |
+| `/auth` | Auth | 否 | 登入頁（含測試免責文字） |
+| `/terms` | TermsOfService | 否 | 服務條款 |
+| `/feed` | Feed | 是 | 貼文動態 |
+| `/messages` | Messages | 是 | 對話列表 |
+| `/messages/:uid` | Chat | 是 | 與指定使用者聊天 |
+| `/ai-chat` | AIChat | 是 | AI 聊天（若啟用 OpenAI） |
+| `/clubs` | Clubs | 是 | 社團列表 |
+| `/clubs/:clubId` | ClubDetail | 是 | 社團詳情 |
+| `/clubs/:clubId/music` | MusicHall | 是 | 社團音樂房間 |
+| `/music-hall` | MusicHallList | 是 | 音樂房間列表 |
+| `/music-hall/:roomId` | MusicHall | 是 | 指定音樂房間 |
+| `/official` | Official | 是 | 官方/公告類頁面（依版本） |
+| `/profile` | Profile | 是 | 自己的個人頁 |
+| `/profile/:uid` | UserProfile | 是 | 看別人的個人頁 |
+| `/settings` | Settings | 是 | 設定頁 |
+| `/notifications` | Notifications | 是 | 通知頁 |
+| `/help` | HelpCenter | 是 | 幫助中心 |
+| `/videos` | Videos | 是 | 影片頁（依版本） |
+| `/admin` | AdminPanel | 是 | **僅 admin** |
+
+補充：
+- `ProtectedRoute` 會先讀取 `systemSettings/global` 的 `maintenanceMode`；若維護模式開啟且使用者不是 admin，會顯示維護頁。
+
+### 3.4 Firestore 資料模型（Collections / Documents）
+
+這份表格整理自 `src/lib/firestore.ts` 與同步服務，用來讓維護者快速知道資料大概放哪裡。
+
+> 注意：這是「實作中出現的資料模型摘要」，不是完整 ERD。實際欄位請以程式碼與 Firestore Console 為準。
+
+| Collection | Doc ID | 典型欄位（節錄） | 用途 |
+|---|---|---|---|
+| `users` | `uid` | `email`, `name/displayName`, `photoURL`, `role`, `profileBackground`, `appTheme`, `followersCount`, `followingCount`, `postsCount`, `onlineStatus`, `lastSeen` | 使用者基本資料 |
+| `posts` | auto | `authorId`, `authorType`, `content`, `media`, `createdAt`, `likesCount`, `commentsCount` | 貼文 |
+| `postMedia` | auto |（媒體資訊，避免貼文 doc 過大）| 貼文媒體拆分 |
+| `likes` | auto | `postId`, `userId`, `createdAt`（依版本）| 按讚 |
+| `comments` | auto | `postId`, `authorId`, `content`, `createdAt` | 留言 |
+| `saved` | auto | `postId`, `userId`, `createdAt`（依版本）| 收藏 |
+| `follows` | auto | `fromUserId`, `toUserId`, `createdAt`（依版本）| 追蹤 |
+| `notifications` | auto | `userId`, `fromUserId`, `type`, `postId?`, `isRead`, `createdAt` | 通知 |
+| `messages` | auto | `conversationId`, `senderId`, `receiverId`, `participants`, `content`, `mediaUrl?`, `isRead`, `createdAt` | 訊息 |
+| `clubs` | auto | `name`, `description`, `members`, `admins`, `createdBy`, `isApproved`, `postingPermission` | 社團 |
+| `club-applications` | auto |（申請加入/申請創社等，依版本）| 申請流程 |
+| `club-invitations` | auto |（邀請加入，依版本）| 邀請流程 |
+| `groups` | auto |（群組資料，依版本）| 群組/多人聊天（若啟用） |
+| `reports` | auto |（檢舉/審核資料，依版本）| 檢舉/管理 |
+| `activityLogs` | auto | `createdAt`, `action`, `entityType`, `entityId`（依版本）| 管理員操作紀錄 |
+| `systemSettings` | `global` | `maintenanceMode`, `maintenanceMessage`, `estimatedEndTime`, `updatedAt`, `updatedBy` | 系統設定/維護模式 |
+| `music_rooms` | room id |（見下方 Music Room schema）| 音樂房間狀態 |
+| `time_sync` | temp | `t: serverTimestamp()` | 用來估算 client 與 server 的時間差（同步用途） |
+
+### 3.5 Music Room 文件結構（`music_rooms/{roomId}`）
+
+同步播放最重要的是「只寫狀態，不寫每秒進度」。下表整理自 `src/services/syncMusicService.ts` 的介面與讀取邏輯。
+
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `clubId` | string | 對應社團/房間 key |
+| `currentTrack` | object \| null | 目前播放曲目（id/name/artist/duration/youtubeId…） |
+| `queue` | array | 待播清單 |
+| `isPlaying` | boolean | 播放/暫停 |
+| `currentTime` | number (ms) | 當下進度（ms）；通常在狀態變更時更新，不是每秒寫 |
+| `startedAt` | number(ms) \| Timestamp \| null | **播放開始的 server 時間**（用來推算現在應該播放到哪） |
+| `listeners` | array | listener 清單（可為 string 或 object；實作中會 normalize 成 object） |
+| `shuffleEnabled` | boolean | 隨機播放 |
+| `repeatMode` | `'off' \| 'one' \| 'all'` | 重複模式 |
+| `creatorId` | string | 房主/創建者 |
+| `joinMode` | `'free' \| 'invite'` | 加入模式（依版本） |
+| `playHistory` | array | 播放歷史（依版本） |
+| `controlMusic` | `'owner' \| 'all'` | 誰能控制播放 |
+| `controlQueue` | `'owner' \| 'all'` | 誰能改 queue |
+
+Listener heartbeat / 清理機制（避免 Firestore 壓力與殭屍 listener）：
+- 以固定間隔（預設 30s）更新 `lastActiveAt`
+- 清理超過閾值（預設 90s）未活動的 listener
+- 若房間完全沒人且不是背景音樂等特殊狀態，可能刪除房間 doc
+
+### 3.6 Firestore Rules（安全性現況）
+
+目前 `firestore.rules` 是**測試用的寬鬆規則**：允許所有 read/write。
+
+這帶來的好處：
+- 開發初期迭代快，不會被規則卡住
+
+但也帶來明顯風險與限制（見下方 limitations）：
+- 任何人都能讀寫任何資料
+- 需要在正式公開前切換到更嚴格的 rules（repo 內也有 `firestore.rules.full` 供參考）
+
 ---
 
 ## 4) 部署與站點策略（新站 / 舊站）
@@ -255,8 +350,17 @@ npx -y firebase-tools deploy --only hosting --project kcismedia-3ad38 --config f
 4) **權限/管理功能仍需持續強化**
 	- 社群產品的核心是 moderation、濫用防護、權限模型
 	- 目前多數依賴 Firestore rules + 基本 UI 邏輯
+	- 另外目前 `firestore.rules` 是測試用全開規則，正式公開前必須收緊
 
-5) **iOS/原生打包（若要做）仍需要額外工程量**
+5) **登入限制仍帶有舊時期假設**
+	- `src/lib/firestore.ts` 目前仍包含「只允許特定網域（例如 `@kcis.com.tw`）或特定 admin email」的限制邏輯
+	- 若要真正成為「非校限定」的 Campus Media，需要把這段策略改成更通用（例如 allowlist/申請制/邀請制）
+
+6) **多 Firebase project 共存會增加維護成本**
+	- 我們目前採用「新站跑新 project、舊站改導引頁」的策略來避免混亂
+	- 若未來還要保留多站並行，需更清楚的環境分層（dev/staging/prod）與配置管理
+
+7) **iOS/原生打包（若要做）仍需要額外工程量**
 	- 需要處理 PWA/Capacitor、推播、原生權限、App Store 流程
 
 ---
