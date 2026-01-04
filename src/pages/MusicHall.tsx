@@ -77,9 +77,9 @@ export default function MusicHall() {
 
   return (
     <AppLayout title={`${displayName} - Music Hall`} showCreate={false}>
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col">
         {/* Header */}
-        <div className="border-b p-4 flex items-center gap-3 bg-background sticky top-0 z-10">
+        <div className="border-b p-4 flex items-center gap-3 bg-background">
           <Button
             variant="ghost"
             size="icon"
@@ -98,7 +98,7 @@ export default function MusicHall() {
         </div>
 
         {/* Music Room Component */}
-        <div className="flex-1 overflow-auto">
+        <div className="pb-20">
           <MusicRoom 
             clubId={effectiveRoomId} 
             clubName={displayName}

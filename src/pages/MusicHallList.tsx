@@ -142,9 +142,9 @@ export default function MusicHallList() {
 
   return (
     <AppLayout title="Music Hall" showCreate={false}>
-      <div className="max-w-6xl mx-auto p-4 space-y-6">
+      <div className="max-w-6xl mx-auto p-4 pb-24 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 
@@ -162,7 +162,7 @@ export default function MusicHallList() {
           </div>
           <Button
             onClick={() => setShowCreateDialog(true)}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             Create Private Room
@@ -187,7 +187,7 @@ export default function MusicHallList() {
               .map((room, index) => (
                 <Card
                   key={room.id}
-                  className="p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in bg-gradient-to-br from-card to-card/50 border-2 hover:border-primary/50"
+                  className="p-4 sm:p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in bg-gradient-to-br from-card to-card/50 border-2 hover:border-primary/50"
                   style={{ animationDelay: `${index * 100}ms` }}
                   onClick={() => navigate(`/music-hall/${room.id}`)}
                 >
@@ -228,7 +228,7 @@ export default function MusicHallList() {
                 .map((room, index) => (
                   <Card
                     key={room.id}
-                    className="p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in bg-gradient-to-br from-card to-card/50 border-2 hover:border-blue-500/50"
+                    className="p-4 sm:p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in bg-gradient-to-br from-card to-card/50 border-2 hover:border-blue-500/50"
                     style={{ animationDelay: `${index * 100}ms` }}
                     onClick={() => navigate(`/music-hall/${room.id}`)}
                   >
