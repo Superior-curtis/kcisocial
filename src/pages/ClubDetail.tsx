@@ -72,6 +72,10 @@ export default function ClubDetail() {
   const [musicSearchQuery, setMusicSearchQuery] = useState('');
   const [musicSearchResults, setMusicSearchResults] = useState<any[]>([]);
   const [musicSearching, setMusicSearching] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const isClubAdmin = user && club && (club.admins?.includes(user.id) || club.createdBy === user.id || user.role === 'admin');
   const isMember = user && club?.members?.includes(user.id);
@@ -85,7 +89,10 @@ export default function ClubDetail() {
       try {
         const clubDoc = await getDoc(doc(firestore, 'clubs', clubId));
         if (clubDoc.exists()) {
-          setClub({ id: clubDoc.id, ...clubDoc.data() } as Club);
+          const clubData = { id: clubDoc.id, ...clubDoc.data() } as Club;
+          setClub(clubData);
+          setEditName(clubData.name);
+          setEditDescription(clubData.description || '');
         }
       } catch (error) {
         console.error('Failed to load club', error);
@@ -509,14 +516,20 @@ export default function ClubDetail() {
               )}
             </div>
             
-            {/* Music Hall Button */}
-            <Button
-              onClick={() => navigate(`/clubs/${clubId}/music`)}
-              className="gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            >
-              <Music className="w-4 h-4" />
-              🎵 Music Hall
-            </Button>
+            <div className="flex gap-2">
+              {isClubAdmin && (
+                <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+                  Edit Club
+                </Button>
+              )}
+              <Button
+                onClick={() => navigate(`/clubs/${clubId}/music`)}
+                className="gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
+                <Music className="w-4 h-4" />
+                🎵 Music Hall
+              </Button>
+            </div>
           </div>
 
           {/* Action Button */}
@@ -913,6 +926,62 @@ export default function ClubDetail() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Edit Club Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Club</DialogTitle>
+              <DialogDescription>Update club name and description (admins and creators only).</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="clubName">Name</Label>
+                <Input
+                  id="clubName"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  maxLength={60}
+                />
+              </div>
+              <div>
+                <Label htmlFor="clubDesc">Description</Label>
+                <Textarea
+                  id="clubDesc"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={savingEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!clubId || !user) return;
+                  setSavingEdit(true);
+                  try {
+                    const { updateClub } = await import('@/lib/firestore');
+                    await updateClub(clubId, user.id, { name: editName.trim(), description: editDescription.trim() });
+                    setClub({ ...club, name: editName.trim(), description: editDescription.trim() } as Club);
+                    toast({ title: 'Club updated' });
+                    setEditDialogOpen(false);
+                  } catch (err) {
+                    console.error(err);
+                    toast({ title: 'Failed to update club', description: (err as Error).message, variant: 'destructive' });
+                  } finally {
+                    setSavingEdit(false);
+                  }
+                }}
+                disabled={savingEdit || !editName.trim()}
+              >
+                {savingEdit ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Post Dialog */}
         <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
