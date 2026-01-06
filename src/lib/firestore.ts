@@ -1357,8 +1357,9 @@ export async function publishClubPost(payload: { clubId: string; authorId: strin
   const clubSnap = await getDoc(doc(clubsCollection, payload.clubId));
   if (!clubSnap.exists()) throw new Error("Club not found");
   const club = clubSnap.data() as ClubRecord;
+  const isMember = (club.members || []).includes(payload.authorId);
   const isAdmin = (club.admins || []).includes(payload.authorId);
-  if (!isAdmin) throw new Error("Only club admins can post for the club.");
+  if (!isMember && !isAdmin) throw new Error("Only club members can post for the club.");
 
   return createPost({
     authorId: payload.authorId,

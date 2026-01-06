@@ -75,7 +75,8 @@ export default function ClubDetail() {
 
   const isClubAdmin = user && club && (club.admins?.includes(user.id) || club.createdBy === user.id || user.role === 'admin');
   const isMember = user && club?.members?.includes(user.id);
-  const canPost = user && club && (isClubAdmin || (isMember && club.postingPermission !== 'admins-only'));
+  // All members can post; admins naturally included via membership/admin check
+  const canPost = Boolean(user && club && (isMember || isClubAdmin));
 
   useEffect(() => {
     if (!clubId) return;
@@ -907,49 +908,7 @@ export default function ClubDetail() {
                   </span>
                 </div>
                 
-                {isClubAdmin && (
-                  <>
-                    <div className="pt-4">
-                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                        Settings
-                      </h4>
-                    </div>
-                    <div className="flex items-center justify-between py-3 border-b border-border">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="posting-permission" className="text-sm font-medium">
-                          Posting Permission
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {club.postingPermission === 'admins-only' 
-                            ? 'Only admins can create posts' 
-                            : 'All members can create posts'}
-                        </p>
-                      </div>
-                      <Switch
-                        id="posting-permission"
-                        checked={club.postingPermission === 'admins-only'}
-                        onCheckedChange={async (checked) => {
-                          if (!clubId || !user) return;
-                          try {
-                            const { updateClub } = await import('@/lib/firestore');
-                            await updateClub(clubId, user.id, {
-                              postingPermission: checked ? 'admins-only' : 'everyone'
-                            });
-                            setClub({ ...club, postingPermission: checked ? 'admins-only' : 'everyone' });
-                            toast({ title: `Posting permission updated to: ${checked ? 'Admins only' : 'Everyone'}` });
-                          } catch (err) {
-                            console.error(err);
-                            toast({ 
-                              title: 'Failed to update posting permission', 
-                              description: (err as Error).message, 
-                              variant: 'destructive' 
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
+                {/* Posting permissions removed: all members can post */}
               </div>
             </div>
           </TabsContent>
